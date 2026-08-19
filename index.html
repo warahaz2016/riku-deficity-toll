@@ -1237,5 +1237,34 @@
 
 })();
 </script>
+
+<!-- Сообщаем родительской странице (например, Тильде) реальную высоту документа,
+     чтобы обёрточный iframe мог автоматически подстраивать свою высоту и
+     скролл был не нужен. Работает независимо от основного скрипта выше. -->
+<script>
+(function(){
+  "use strict";
+  if (window === window.parent) return; // не в iframe — ничего не делаем
+  var lastSent = 0;
+  function sendHeight(){
+    var h = Math.max(
+      document.documentElement.scrollHeight,
+      document.body ? document.body.scrollHeight : 0,
+      document.documentElement.offsetHeight
+    );
+    if (Math.abs(h - lastSent) < 4) return;
+    lastSent = h;
+    try { window.parent.postMessage({riku_iframe_height: h}, '*'); } catch(e){}
+  }
+  window.addEventListener('load', sendHeight);
+  window.addEventListener('resize', sendHeight);
+  if (window.ResizeObserver) {
+    new ResizeObserver(sendHeight).observe(document.documentElement);
+  }
+  // подстраховка: контент может меняться без ресайза (появление сводки, таблицы файлов)
+  setInterval(sendHeight, 400);
+  sendHeight();
+})();
+</script>
 </body>
 </html>
