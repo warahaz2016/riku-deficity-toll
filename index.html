@@ -9,75 +9,90 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
   :root{
-    --navy:#1F3864; --blue:#2E5496; --lightblue:#DCE6F5; --gold:#C9A227; --lightgold:#FBF1D3;
-    --red:#C0392B; --green:#2E7D32; --grey:#6b7280; --bg:#f4f6fb; --card:#ffffff; --border:#e3e8f2;
+    --navy:#132a3e; --accent:#2563a8; --accent-dark:#184a80; --accent-soft:#eaf2fa;
+    --bg:#eef2f6; --card:#ffffff; --border:#e1e7ee; --border-soft:#edf1f5;
+    --text:#1b2a38; --muted:#66798c; --muted-soft:#93a2b1;
+    --good:#2b8a3e; --good-bg:#ecfaef; --good-border:#bfe8c8;
+    --warn:#a15c00; --warn-bg:#fff6e6; --warn-border:#f3d99b;
+    --bad:#b02a2a; --bad-bg:#fdefef; --bad-border:#f2c4c4;
+    --radius:12px; --shadow:0 1px 2px rgba(19,42,62,.04), 0 4px 14px rgba(19,42,62,.05);
   }
   *{box-sizing:border-box;}
+  html{-webkit-font-smoothing:antialiased;}
   body{
-    margin:0; padding:0; background:var(--bg);
-    font-family:'Segoe UI', Roboto, Arial, sans-serif; color:#1c2536;
+    margin:0; padding:0;
+    background:
+      radial-gradient(1200px 400px at 15% -10%, rgba(37,99,168,.06), transparent 60%),
+      var(--bg);
+    font-family:"Segoe UI",-apple-system,BlinkMacSystemFont,Roboto,Arial,sans-serif; color:var(--text);
   }
-  .riku-wrap{max-width:980px; margin:0 auto; padding:32px 20px 60px;}
-  .riku-header{text-align:center; margin-bottom:28px;}
+  .riku-wrap{max-width:980px; margin:0 auto; padding:36px 20px 60px;}
+  .riku-header{text-align:center; margin-bottom:30px;}
   .riku-header h1{
-    font-size:28px; color:var(--navy); margin:0 0 8px; font-weight:800; letter-spacing:.3px;
+    font-size:24px; color:var(--navy); margin:0 0 8px; font-weight:700; letter-spacing:-.1px;
   }
-  .riku-header p{color:var(--grey); font-size:15px; margin:0; max-width:640px; margin:0 auto;}
+  .riku-header p{color:var(--muted); font-size:13.5px; margin:0 auto; max-width:640px;}
   .riku-card{
-    background:var(--card); border:1px solid var(--border); border-radius:16px;
-    padding:26px; margin-bottom:20px; box-shadow:0 2px 14px rgba(31,56,100,.06);
+    background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+    padding:24px 26px; margin-bottom:18px; box-shadow:var(--shadow);
   }
   .riku-drop{
-    border:2px dashed #b7c4e0; border-radius:14px; padding:40px 20px; text-align:center;
-    cursor:pointer; transition:.2s; background:#fafbff;
+    border:1.5px dashed #c3d2e2; border-radius:10px; padding:36px 20px; text-align:center;
+    cursor:pointer; transition:border-color .15s, background .15s; background:#f8fafc;
   }
-  .riku-drop:hover, .riku-drop.dragover{ border-color:var(--blue); background:var(--lightblue); }
-  .riku-drop .ico{font-size:38px; margin-bottom:10px;}
-  .riku-drop .title{font-weight:700; color:var(--navy); font-size:16px; margin-bottom:4px;}
-  .riku-drop .hint{font-size:13px; color:var(--grey);}
+  .riku-drop:hover, .riku-drop.dragover{ border-color:var(--accent); background:var(--accent-soft); }
+  .riku-drop .ico{font-size:34px; margin-bottom:10px;}
+  .riku-drop .title{font-weight:650; color:var(--navy); font-size:15px; margin-bottom:4px;}
+  .riku-drop .hint{font-size:12.5px; color:var(--muted);}
   #riku-file-input{display:none;}
   .riku-filename{
-    margin-top:14px; font-size:14px; color:var(--navy); font-weight:600; display:none;
+    margin-top:14px; font-size:13.5px; color:var(--navy); font-weight:600; display:none;
   }
   .riku-btn{
-    display:inline-block; background:var(--navy); color:#fff; border:none; padding:13px 26px;
-    border-radius:10px; font-size:15px; font-weight:700; cursor:pointer; transition:.15s;
-    letter-spacing:.2px;
+    display:inline-block; background:linear-gradient(155deg, var(--accent) 0%, var(--accent-dark) 100%);
+    color:#fff; border:none; padding:12px 26px;
+    border-radius:9px; font-size:14px; font-weight:650; cursor:pointer;
+    letter-spacing:.1px; box-shadow:0 2px 6px rgba(37,99,168,.28);
+    transition:transform .1s, box-shadow .15s, opacity .15s;
   }
-  .riku-btn:hover{background:var(--blue);}
-  .riku-btn:disabled{background:#b9c3d6; cursor:not-allowed;}
-  .riku-btn.gold{background:var(--gold);}
-  .riku-btn.gold:hover{background:#b8931f;}
+  .riku-btn:hover{box-shadow:0 4px 12px rgba(37,99,168,.34);}
+  .riku-btn:active{transform:translateY(1px);}
+  .riku-btn:disabled{background:#aab8c6; box-shadow:none; cursor:not-allowed;}
+  .riku-btn.gold{background:#fff; color:var(--accent-dark); border:1.5px solid #cfe0f2; box-shadow:none;}
+  .riku-btn.gold:hover{background:var(--accent-soft); box-shadow:none;}
   .riku-actions{text-align:center; margin-top:18px;}
   .riku-progress{
-    display:none; margin-top:18px; background:#eef1f8; border-radius:10px; height:10px; overflow:hidden;
+    display:none; margin-top:18px; background:#e4e9ef; border-radius:6px; height:7px; overflow:hidden;
   }
-  .riku-progress .bar{height:100%; width:0%; background:linear-gradient(90deg,var(--blue),var(--gold)); transition:width .25s;}
-  .riku-status{text-align:center; font-size:13.5px; color:var(--grey); margin-top:10px; min-height:18px;}
-  .riku-summary h3{color:var(--navy); font-size:17px; margin:0 0 14px;}
+  .riku-progress .bar{height:100%; width:0%; background:linear-gradient(90deg, var(--accent), var(--accent-dark)); transition:width .35s ease;}
+  .riku-status{text-align:center; font-size:12.5px; color:var(--muted); margin-top:10px; min-height:18px;}
+  .riku-summary h3{color:var(--navy); font-size:15.5px; margin:0 0 14px; font-weight:650;}
   .riku-stats{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:16px;}
-  .riku-stat{background:var(--lightblue); border-radius:12px; padding:14px 16px;}
-  .riku-stat .num{font-size:24px; font-weight:800; color:var(--navy);}
-  .riku-stat .lbl{font-size:12.5px; color:#3a4a6b; margin-top:2px;}
-  .riku-warn{background:var(--lightgold); border-left:4px solid var(--gold); padding:10px 14px; border-radius:8px; font-size:13.5px; color:#5c4a11; margin-bottom:10px;}
-  .riku-territories{font-size:13.5px; color:var(--grey); margin-bottom:6px;}
-  .riku-pkg-table{width:100%; border-collapse:collapse; margin-top:10px; font-size:13.5px;}
+  .riku-stat{background:#f8fafc; border:1px solid var(--border-soft); border-left:3px solid var(--accent); border-radius:9px; padding:12px 16px;}
+  .riku-stat .num{font-size:22px; font-weight:750; color:var(--navy); line-height:1.1;}
+  .riku-stat .lbl{font-size:11px; color:var(--muted); margin-top:3px;}
+  .riku-warn{background:var(--warn-bg); border:1px solid var(--warn-border); border-left:3px solid var(--warn); padding:10px 14px; border-radius:9px; font-size:13px; color:var(--warn); margin-bottom:10px;}
+  .riku-territories{font-size:13px; color:var(--muted); margin-bottom:6px;}
+  .riku-pkg-table{width:100%; border-collapse:collapse; margin-top:10px; font-size:13px;}
   .riku-pkg-table th{
-    text-align:left; background:var(--navy); color:#fff; padding:9px 12px; font-weight:600;
+    text-align:left; background:var(--navy); color:#fff; padding:10px 12px; font-weight:600;
+    font-size:11.5px; letter-spacing:.3px; text-transform:uppercase;
   }
   .riku-pkg-table th:first-child{border-radius:8px 0 0 0;}
   .riku-pkg-table th:last-child{border-radius:0 8px 0 0;}
-  .riku-pkg-table td{padding:8px 12px; border-bottom:1px solid var(--border);}
-  .riku-pkg-table tr:nth-child(even) td{background:#f8f9fd;}
+  .riku-pkg-table td{padding:9px 12px; border-bottom:1px solid var(--border-soft);}
+  .riku-pkg-table tr:nth-child(even) td{background:#f8fafc;}
+  .riku-pkg-table tr:hover td{background:var(--accent-soft);}
   .riku-dl{
-    color:var(--blue); text-decoration:none; font-weight:700; font-size:13px;
-    border:1px solid var(--blue); border-radius:7px; padding:4px 10px; white-space:nowrap;
+    color:var(--accent-dark); text-decoration:none; font-weight:650; font-size:12.5px;
+    border:1px solid #cfe0f2; border-radius:7px; padding:5px 12px; white-space:nowrap; background:var(--accent-soft);
+    transition:background .15s;
   }
-  .riku-dl:hover{background:var(--blue); color:#fff;}
-  .riku-footer-note{font-size:12px; color:#9aa4b8; text-align:center; margin-top:22px;}
+  .riku-dl:hover{background:#dcebf9;}
+  .riku-footer-note{font-size:12px; color:var(--muted-soft); text-align:center; margin-top:22px;}
   .riku-hidden{display:none;}
   @media (max-width:600px){
-    .riku-header h1{font-size:22px;}
+    .riku-header h1{font-size:20px;}
     .riku-card{padding:18px;}
   }
 </style>
