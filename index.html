@@ -126,7 +126,7 @@
       <button class="riku-btn gold" id="riku-zip-btn">⬇ Скачать всё одним архивом (ZIP)</button>
     </div>
     <table class="riku-pkg-table">
-      <thead><tr><th>Пакет</th><th>Территория</th><th>Файл</th><th></th></tr></thead>
+      <thead><tr><th>Пакет</th><th>Территория/Предмет</th><th>Файл</th><th></th></tr></thead>
       <tbody id="riku-files-body"></tbody>
     </table>
   </div>
@@ -532,49 +532,351 @@
 
   // ---------------- recommendation engine ----------------
   // Три муниципальных/межмуниципальных уровня мероприятий по ликвидации дефицитов
-  // (региональный уровень ЦНППМ исключён по решению заказчика). Разрешённые
-  // форматы мероприятий: вебинар, мастер-класс, тренинг, консультация — без
-  // курсов ПК.
+  // (региональный уровень ЦНППМ исключён). Тема мероприятия всегда строится из
+  // ФАКТИЧЕСКОЙ темы задания, выявленной как дефицит (параметр tema) — без
+  // фиксированного каталога по темам, чтобы инструмент одинаково работал для
+  // любой спецификации КУРО, включая ещё не известные будущие темы.
   //
-  // ВАЖНО: тема мероприятия всегда строится из ФАКТИЧЕСКОЙ темы задания,
-  // выявленной как дефицит (параметр tema), а не из фиксированного каталога
-  // заранее заготовленных названий — инструмент должен одинаково работать для
-  // любой спецификации КУРО (старой, 2026 года и будущих обновлений с ещё не
-  // известными темами) без доработки кода под каждую новую тему вручную.
-  //
-  // Чтобы три уровня не звучали как одна и та же фраза с заменённым словом
-  // «вебинар/мастер-класс/тренинг», у каждого уровня своя педагогическая роль
-  // (и, соответственно, свой оборот речи вокруг той же темы):
-  //   УМЦ (межмуниципальный)  — теория, методика, нормативная база темы;
-  //   ГМО                     — практическая отработка темы среди коллег;
-  //   ШМО                     — разбор конкретных ошибок/затруднений, точечная
-  //                             работа с педагогом по этой же теме.
-  // Формулировка каждого уровня строится шаблоном (глагольная рамка + тема),
-  // так что итог остаётся полностью параметрическим (не хардкод по темам), но
-  // не повторяет одну и ту же фразу три раза.
-  function recommendForDeficit(subject, bkey, tema){
+  // Формулировки по уровням (заданы заказчиком):
+  //  УМЦ (межмуниципальный) — «семинар/вебинар»; для предметного блока —
+  //    «для учителей <предмет в род. падеже>»; для блока ФГ — фиксированная
+  //    рамка «<вид грамотности>: подходы к формированию на уроках <предмет>»;
+  //    для методического блока — без слова «тема».
+  //  ГМО — без слова «ГМО» и без фразы «применение темы» в тексте (сама
+  //    орг.принадлежность по-прежнему видна отдельным подписью «ГМО по
+  //    предмету» под названием); кроме мастер-классов — где уместно коучинг-
+  //    сессии/семинары-практикумы/тренинги; два именных исключения (задания
+  //    «Проверка ответов учащихся» и «ФГОС: планируемые результаты»).
+  //  ШМО — без слова «ШМО» в тексте; «Консультация методиста» →
+  //    «Консультация методиста/наставника»; в методическом блоке тема не
+  //    выводится дословно в кавычках — вместо этого используется естественная
+  //    фраза «разбор затруднений при/по ...» (таблица известных формулировок
+  //    ниже + разумный запасной вариант для неизвестных тем); в предметном
+  //    блоке — «Взаимное посещение уроков наставнических пар/групп».
+
+  // ---- Словарь предмета в родительном падеже (для «учителей <кого>» и «на
+  // уроках <чего>») — предметники (группа 1). ----
+  var TEACHER_OF = {
+    'Английский язык': 'английского языка',
+    'Немецкий язык': 'немецкого языка',
+    'Французский язык': 'французского языка',
+    'Начальная школа': 'начальных классов',
+    'Литература': 'литературы',
+    'Обществознание': 'обществознания',
+    'Физика': 'физики',
+    'Русский язык': 'русского языка',
+    'Математика': 'математики',
+    'География': 'географии',
+    'Физическая культура': 'физической культуры',
+    'Биология': 'биологии',
+    'ОБЖ': 'ОБЖ',
+    'ОБЗР': 'ОБЗР',
+    'Химия': 'химии',
+    'Информатика (паскаль, СИ)': 'информатики',
+    'История': 'истории',
+    'Технология': 'технологии',
+    'Изобразительное искусство': 'изобразительного искусства',
+    'Музыка': 'музыки'
+  };
+  // ---- Готовая фраза-замена «для учителей X» для группы 2 (воспитатели/
+  // специалисты — у них другая профессиональная роль, не «учитель»). ----
+  var ROLE_FOR = {
+    'Воспитатель ДОО': 'воспитателей ДОО',
+    'Социальный педагог': 'социальных педагогов',
+    'Педагог-психолог': 'педагогов-психологов',
+    'Инструктор-методист ДЮСШ (тренер-преподаватель)': 'тренеров-преподавателей',
+    'Музыкальный руководитель ДОО': 'музыкальных руководителей ДОО',
+    'Педагог-организатор': 'педагогов-организаторов',
+    'Учитель-дефектолог': 'учителей-дефектологов'
+  };
+  function roleForSubject(subject){
+    if (GROUP1.has(subject)) {
+      return 'учителей ' + (TEACHER_OF[subject] || ('предмета «' + subject + '»'));
+    }
+    if (GROUP2.has(subject)) {
+      return ROLE_FOR[subject] || ('специалистов направления «' + subject + '»');
+    }
+    return 'педагогов по предмету «' + subject + '»';
+  }
+  function lessonPhrase(subject){
+    if (GROUP1.has(subject) && TEACHER_OF[subject]) return 'на уроках ' + TEACHER_OF[subject];
+    if (GROUP1.has(subject)) return 'на уроках';
+    return 'на занятиях';
+  }
+
+  // ---- Естественный (не «тема «X»») оборот для методического блока на
+  // уровне ШМО — таблица по известным темам спецификаций КУРО (старой и
+  // 2026 года) + запасной вариант для ещё не известных тем. ----
+  function normalizeTema(t){
+    return String(t || '')
+      .replace(/[–—]/g, '-')
+      .replace(/\s+/g, ' ')
+      .replace(/\s*-\s*/g, '-')
+      .trim()
+      .toLowerCase();
+  }
+  var METOD_SHMO_PHRASE = {
+    'взаимодействие между участниками психолого-педагогического сопровождения': 'при выстраивании взаимодействия между участниками психолого-педагогического сопровождения',
+    'взаимодействие участников дополнительного образования': 'при выстраивании взаимодействия участников дополнительного образования',
+    'виды психолого-педагогической деятельности': 'при выборе видов психолого-педагогической деятельности',
+    'динамика развития группы': 'при анализе динамики развития группы',
+    'динамика развития коллектива': 'при анализе динамики развития коллектива',
+    'занятие-знакомство с новым материалом': 'при проведении занятия-знакомства с новым материалом',
+    'игровые технологии': 'при использовании игровых технологий',
+    'использование цифровых образовательных ресурсов в образовательной деятельности': 'при использовании цифровых образовательных ресурсов в образовательной деятельности',
+    'конфликт в психолого-педагогической деятельности': 'при разрешении конфликтов в психолого-педагогической деятельности',
+    'методы коррекционно-развивающей работы': 'при применении методов коррекционно-развивающей работы',
+    'научные основы педагогических технологий': 'при опоре на научные основы педагогических технологий',
+    'нормативно-правовое обеспечение дополнительного образования детей': 'в вопросах нормативно-правового обеспечения дополнительного образования детей',
+    'нормативные документы реализации федеральной рабочей программы воспитания': 'при работе с нормативными документами программы воспитания',
+    'образовательная и исследовательская деятельность в доо': 'при организации образовательной и исследовательской деятельности в ДОО',
+    'образовательная и исследовательск ая деятельность в доо': 'при организации образовательной и исследовательской деятельности в ДОО',
+    'общая и возрастная психология': 'по вопросам возрастной психологии обучающихся',
+    'организация дополнительного образования. программы дополнительного образования': 'при разработке программ дополнительного образования',
+    'основы воспитательной деятельности': 'по основам воспитательной деятельности',
+    'оценочные процедуры': 'при проведении оценочных процедур',
+    'педагогическая психология': 'по вопросам педагогической психологии',
+    'предметно-пространственная развивающая среда': 'при организации предметно-пространственной развивающей среды',
+    'предметно-пространственна я развивающая среда': 'при организации предметно-пространственной развивающей среды',
+    'проверка ответов учащихся': 'при проверке ответов учащихся',
+    'профессиональные стандарты педагогов дополнительного образования': 'по применению профессиональных стандартов педагогов дополнительного образования',
+    'психолого-педагогическая диагностика': 'при проведении психолого-педагогической диагностики',
+    'психолого-педагогическая диагностика методы коррекционно-развивающей работы': 'при проведении психолого-педагогической диагностики и применении методов коррекционно-развивающей работы',
+    'система оценки': 'при выстраивании системы оценки',
+    'современные методы оценивания': 'при использовании современных методов оценивания',
+    'современные педагогические технологии': 'при использовании современных педагогических технологий',
+    'технологии коррекционно-развивающей работы': 'при применении технологий коррекционно-развивающей работы',
+    'управление учебной группой': 'при управлении учебной группой',
+    'фгос: общие положения и целевые ориентиры': 'по общим положениям и целевым ориентирам ФГОС',
+    'фгос: планируемые результаты': 'по планируемым результатам ФГОС',
+    'фгос: требования к результатам освоения фоп доо': 'по требованиям к результатам освоения ФОП ДОО',
+    'формы и методы обучения': 'при выборе форм и методов обучения',
+    'формы организации дополнительного образования детей': 'при выборе форм организации дополнительного образования детей',
+    'цели и задачи проектно-исследовательской деятельности': 'при постановке целей и задач проектно-исследовательской деятельности',
+    'цели и задачи проектно-исследовательск ой деятельности': 'при постановке целей и задач проектно-исследовательской деятельности'
+  };
+  function metodShmoPhrase(tema){
+    var key = normalizeTema(tema);
+    if (METOD_SHMO_PHRASE[key]) return METOD_SHMO_PHRASE[key];
+    // запасной вариант для тем, которых ещё нет в таблице (новые/будущие спецификации)
+    return 'по направлению «' + (tema || '').toLowerCase() + '»';
+  }
+
+  // ---- Генитив вида грамотности для формулировок ШМО в блоке ФГ:
+  // «Читательская грамотность» -> «читательской грамотности» и т.п. ----
+  function cleanFgTema(tema){
+    return String(tema || '').replace(/\s*\([^)]*\)\s*$/, '').trim();
+  }
+  function literacyGenitive(temaClean){
+    var parts = temaClean.split(/\s+/);
+    if (parts.length < 2) return temaClean.toLowerCase();
+    var noun = parts[parts.length - 1];
+    var adjParts = parts.slice(0, parts.length - 1);
+    var nounGen = /ость$/i.test(noun) ? noun.replace(/ь$/i, 'и') : noun;
+    var adjGen = adjParts.map(function(w){ return /ая$/i.test(w) ? w.replace(/ая$/i, 'ой') : w; }).join(' ');
+    return (adjGen + ' ' + nounGen).toLowerCase();
+  }
+
+  function altPick(taskNum, a, b){
+    return (typeof taskNum === 'number' && taskNum % 2 === 0) ? b : a;
+  }
+
+  function recommendForDeficit(subject, bkey, tema, taskNum){
     var label = tema || 'выявленный дефицит';
     var umc = [], gmo = [], shmo = [];
 
     if (bkey === 'fg'){
-      umc.push({title:'Вебинар «' + label + '»: подходы к формированию функциональной грамотности по теме', format:'вебинар', org:'Межмуниципальный УМЦ'});
-      gmo.push({title:'Мастер-класс ГМО: разбор типовых заданий по теме «' + label + '»', format:'мастер-класс', org:'ГМО по предмету'});
-      shmo.push({title:'Тренинг ШМО: отработка заданий по теме «' + label + '» на конкретных примерах', format:'тренинг', org:'ШМО'});
+      var fgClean = cleanFgTema(label);
+      var fgGen = literacyGenitive(fgClean);
+      umc.push({title:'Семинар/вебинар «' + fgClean + ': подходы к формированию ' + lessonPhrase(subject) + '»', format:'семинар/вебинар', org:'Межмуниципальный УМЦ'});
+      gmo.push({title: altPick(taskNum,
+        'Мастер-класс: разбор типовых заданий по теме «' + label + '»',
+        'Семинар-практикум: разбор типовых заданий по теме «' + label + '»'),
+        format: altPick(taskNum,'мастер-класс','семинар-практикум'), org:'ГМО по предмету'});
+      shmo.push({title: altPick(taskNum,
+        'Тренинг «Аспекты формирования ' + fgGen + '»',
+        'Кейс-семинар «Формирование ' + fgGen + ' на уроках»'),
+        format: altPick(taskNum,'тренинг','кейс-семинар'), org:'ШМО'});
       return {umc:umc, gmo:gmo, shmo:shmo};
     }
 
     if (bkey === 'metod'){
-      umc.push({title:'Вебинар «' + label + '»: теоретические и нормативные основы темы', format:'вебинар', org:'Межмуниципальный УМЦ'});
-      gmo.push({title:'Мастер-класс ГМО: применение темы «' + label + '» в практике педагога', format:'мастер-класс', org:'ГМО по предмету'});
-      shmo.push({title:'Консультация методиста ШМО: разбор затруднений по теме «' + label + '»', format:'консультация', org:'ШМО'});
+      var key = normalizeTema(label);
+      umc.push({title:'Семинар/вебинар «' + label + ': теоретические и нормативные основы»', format:'семинар/вебинар', org:'Межмуниципальный УМЦ'});
+
+      if (key === 'проверка ответов учащихся'){
+        gmo.push({title:'Мастер-класс/коучинг-сессия «' + label + '»', format:'мастер-класс/коучинг-сессия', org:'ГМО по предмету'});
+      } else if (key === 'фгос: планируемые результаты'){
+        gmo.push({title:'Семинар-практикум для ' + roleForSubject(subject) + ' «' + label + '»', format:'семинар-практикум', org:'ГМО по предмету'});
+      } else {
+        gmo.push({title:'Мастер-класс «' + label + ' в практике педагога»', format:'мастер-класс', org:'ГМО по предмету'});
+      }
+
+      shmo.push({title:'Консультация методиста/наставника «Разбор затруднений ' + metodShmoPhrase(label) + '»', format:'консультация', org:'ШМО'});
       return {umc:umc, gmo:gmo, shmo:shmo};
     }
 
-    // predmet — тема мероприятия дополнительно привязана к предмету/специализации
-    umc.push({title:'Вебинар по предмету «' + subject + '»: «' + label + '» — разбор темы и методические подходы к преподаванию', format:'вебинар', org:'Межмуниципальный УМЦ'});
-    gmo.push({title:'Мастер-класс ГМО по предмету «' + subject + '»: практическая отработка задания по теме «' + label + '»', format:'мастер-класс', org:'ГМО по предмету'});
-    shmo.push({title:'Тренинг ШМО по предмету «' + subject + '»: закрепление темы «' + label + '», разбор типичных ошибок', format:'тренинг', org:'ШМО'});
+    // predmet
+    umc.push({title:'Семинар/вебинар для ' + roleForSubject(subject) + ' по теме «' + label + '»', format:'семинар/вебинар', org:'Межмуниципальный УМЦ'});
+    gmo.push({title: altPick(taskNum,
+      'Мастер-класс для ' + roleForSubject(subject) + ' по теме «' + label + '»',
+      'Семинар-практикум для ' + roleForSubject(subject) + ' по теме «' + label + '»'),
+      format: altPick(taskNum,'мастер-класс','семинар-практикум'), org:'ГМО по предмету'});
+    shmo.push({title:'Взаимное посещение уроков наставнических пар/групп по теме «' + label + '» с последующей рефлексией', format:'взаимопосещение уроков', org:'ШМО'});
     return {umc:umc, gmo:gmo, shmo:shmo};
+  }
+
+  // ---------------- новые темы спецификации 2026 года (проактивная подготовка) ----------------
+  // Задания методического блока с task_num >= 20 — это темы, добавленные в
+  // спецификацию КУРО 2026 года (раздел «Добавлено»). По ним ещё никто не
+  // сдавал диагностику, поэтому эмпирических дефицитов нет — но все три
+  // уровня (УМЦ/ГМО/ШМО) должны организовать подготовку заранее, одинаково
+  // для всех территорий. Список берётся напрямую из данных спецификации
+  // SPECS_NEW (без привязки к конкретным ответам/территориям), поэтому не
+  // требует ручной доработки кода при появлении новых версий спецификации —
+  // достаточно, чтобы новый task_num был >= NEW_SPEC_METOD_MIN_TASK_NUM.
+  var NEW_SPEC_METOD_MIN_TASK_NUM = 20;
+  function getNewSpecTasksForSubject(subject){
+    var slist = (SPECS_NEW[subject] && SPECS_NEW[subject].metod) || [];
+    return slist.filter(function(t){ return t.task_num >= NEW_SPEC_METOD_MIN_TASK_NUM; })
+      .map(function(t){ return {taskNum: t.task_num, tema: t.tema, max: t.max}; })
+      .sort(function(a,b){ return a.taskNum - b.taskNum; });
+  }
+  function listSubjectsWithNewSpecTasks(){
+    var subjects = [];
+    GROUP1.forEach(function(subj){
+      if (getNewSpecTasksForSubject(subj).length) subjects.push(subj);
+    });
+    return subjects.sort(function(a,b){return a.localeCompare(b,'ru');});
+  }
+
+  function writeNewTopicsPrepSheet(ws, subject){
+    var tasks = getNewSpecTasksForSubject(subject);
+    var row = 1;
+    setCell(ws, row, 1, 'ПРОАКТИВНАЯ ПОДГОТОВКА К НОВЫМ ТЕМАМ СПЕЦИФИКАЦИИ КУРО 2026 ГОДА — ' + subject, {bold:true, size:13}); row++;
+    setCell(ws, row, 1, 'Методический блок спецификации пополнен новыми заданиями (2026 год, раздел «Добавлено»). Диагностика по ним ещё не проводилась, эмпирических дефицитов нет — мероприятия организуются заблаговременно на всех трёх уровнях, одинаково для всех территорий.', {italic:true, wrap:true}); row += 2;
+    var headers = ['№ задания','Тема задания','Статус','Межмуниципальный уровень (УМЦ)','ГМО','ШМО'];
+    headers.forEach(function(h,j){ setCell(ws, row, j+1, h, {bold:true, color:'FFFFFFFF', fill:COLOR.header, border:true, wrap:true}); });
+    row++;
+    if (!tasks.length){
+      setCell(ws, row, 1, '(для этой специальности новых заданий 2026 года в методическом блоке нет)');
+      ws.columns = [{width:12},{width:40},{width:20},{width:42},{width:42},{width:42}];
+      return;
+    }
+    tasks.forEach(function(t){
+      var rec = recommendForDeficit(subject, 'metod', t.tema, t.taskNum);
+      setCell(ws, row, 1, t.taskNum, {border:true, wrap:true});
+      setCell(ws, row, 2, t.tema, {border:true, wrap:true});
+      setCell(ws, row, 3, 'новое задание 2026 года — диагностических данных пока нет', {border:true, wrap:true, italic:true});
+      setCell(ws, row, 4, rec.umc.map(function(x){return x.title;}).join('\n'), {border:true, wrap:true});
+      setCell(ws, row, 5, rec.gmo.map(function(x){return x.title;}).join('\n'), {border:true, wrap:true});
+      setCell(ws, row, 6, rec.shmo.map(function(x){return x.title;}).join('\n'), {border:true, wrap:true});
+      ws.getRow(row).height = 60;
+      row++;
+    });
+    ws.columns = [{width:12},{width:40},{width:20},{width:42},{width:42},{width:42}];
+  }
+
+  async function buildNewTopicsPrepWorkbook(subject){
+    var wb = new ExcelJS.Workbook();
+    var ws = wb.addWorksheet(sanitizeSheetName(subject) || 'Лист');
+    writeNewTopicsPrepSheet(ws, subject);
+    var buf = await wb.xlsx.writeBuffer();
+    return buf;
+  }
+
+  // Отдельный файл на каждый предмет (одинаковое содержание для всех
+  // территорий — мероприятия не зависят от конкретных данных диагностики).
+  async function buildAllNewTopicsPrepFiles(){
+    var subjects = listSubjectsWithNewSpecTasks();
+    var out = [];
+    for (var i=0;i<subjects.length;i++){
+      var buf = await buildNewTopicsPrepWorkbook(subjects[i]);
+      out.push({territory: subjects[i], buffer: buf});
+      await new Promise(function(res){ setTimeout(res, 0); });
+    }
+    return out;
+  }
+
+  // ---------------- сводный типовой план работы по мероприятиям ----------------
+  // Объединяет мероприятия, уже разработанные по фактически выявленным
+  // дефицитам (вся выборка по региону, база+низкий объединены, <50%), с
+  // проактивными мероприятиями по новым темам спецификации 2026 года —
+  // в разрезе трёх уровней (УМЦ/ГМО/ШМО).
+  function collectAllMeasuresRows(records, empiricalMax){
+    var rows = [];
+    var bySubj = groupBySubjectAll(records);
+    Object.keys(bySubj).sort(function(a,b){return a.localeCompare(b,'ru');}).forEach(function(subj){
+      var subjRecords = bySubj[subj];
+      var taskRows = collectTaskRows(subj, empiricalMax);
+      taskRows.forEach(function(t){
+        var pcts = [];
+        subjRecords.forEach(function(r){
+          var sc = personScore(r, t.block, t.pos);
+          if (sc !== null && t.max) pcts.push(sc / t.max * 100);
+        });
+        if (!pcts.length) return;
+        var avg = pcts.reduce(function(a,b){return a+b;},0) / pcts.length;
+        if (avg >= 50) return;
+        rows.push({
+          source: 'Выявленный дефицит', subject: subj, taskNum: t.taskNum, tema: t.tema,
+          pctInfo: (Math.round(avg*10)/10) + '%',
+          recommend: recommendForDeficit(subj, t.block, t.tema, t.taskNum)
+        });
+      });
+    });
+    listSubjectsWithNewSpecTasks().forEach(function(subj){
+      getNewSpecTasksForSubject(subj).forEach(function(t){
+        rows.push({
+          source: 'Новое задание спецификации 2026', subject: subj, taskNum: t.taskNum, tema: t.tema,
+          pctInfo: 'диагностических данных пока нет',
+          recommend: recommendForDeficit(subj, 'metod', t.tema, t.taskNum)
+        });
+      });
+    });
+    rows.sort(function(a,b){
+      if (a.subject !== b.subject) return a.subject.localeCompare(b.subject,'ru');
+      return a.taskNum - b.taskNum;
+    });
+    return rows;
+  }
+
+  function writeTypicalPlanLevelSheet(ws, levelKey, levelLabel, rows){
+    var row = 1;
+    setCell(ws, row, 1, 'СВОДНЫЙ ТИПОВОЙ ПЛАН РАБОТЫ ПО МЕРОПРИЯТИЯМ — ' + levelLabel, {bold:true, size:13}); row++;
+    setCell(ws, row, 1, 'Объединены мероприятия по фактически выявленным дефицитам (вся выборка по региону, база+низкий объединены, <50%) и мероприятия по новым темам спецификации КУРО 2026 года (проактивная подготовка, диагностических данных пока нет).', {italic:true, wrap:true}); row += 2;
+    var headers = ['Источник','Предмет/специализация','№ задания','Тема задания','% выполнения / статус','Мероприятие'];
+    headers.forEach(function(h,j){ setCell(ws, row, j+1, h, {bold:true, color:'FFFFFFFF', fill:COLOR.header, border:true, wrap:true}); });
+    row++;
+    rows.forEach(function(r){
+      var activities = r.recommend[levelKey] || [];
+      var title = activities.map(function(x){return x.title;}).join('\n');
+      setCell(ws, row, 1, r.source, {border:true, wrap:true});
+      setCell(ws, row, 2, r.subject, {border:true, wrap:true});
+      setCell(ws, row, 3, r.taskNum, {border:true, wrap:true});
+      setCell(ws, row, 4, r.tema, {border:true, wrap:true});
+      setCell(ws, row, 5, r.pctInfo, {border:true, wrap:true});
+      setCell(ws, row, 6, title, {border:true, wrap:true});
+      row++;
+    });
+    if (!rows.length){ setCell(ws, row, 1, '(нет данных)'); }
+    ws.columns = [{width:24},{width:30},{width:10},{width:40},{width:22},{width:60}];
+  }
+
+  async function buildTypicalPlanWorkbook(records, empiricalMax){
+    var wb = new ExcelJS.Workbook();
+    var rows = collectAllMeasuresRows(records, empiricalMax);
+    var levels = [
+      {key:'umc', label:'Межмуниципальный уровень (УМЦ)'},
+      {key:'gmo', label:'ГМО'},
+      {key:'shmo', label:'ШМО'}
+    ];
+    levels.forEach(function(lv){
+      var ws = wb.addWorksheet(lv.key.toUpperCase());
+      writeTypicalPlanLevelSheet(ws, lv.key, lv.label, rows);
+    });
+    var buf = await wb.xlsx.writeBuffer();
+    return buf;
   }
 
   // ---------------- per-territory deficit aggregation (for dashboard + quiz) ----------------
@@ -615,7 +917,7 @@
             tema: tr.tema, tnum: tr.taskNum, blockLabel: tr.blockLabel, block: tr.block,
             avg: Math.round(avg*10)/10, n: pcts.length, deficits: deficits,
             share: Math.round(deficits/pcts.length*1000)/10,
-            recommend: recommendForDeficit(subj, tr.block, tr.tema)
+            recommend: recommendForDeficit(subj, tr.block, tr.tema, tr.taskNum)
           });
         });
         topics.sort(function(a,b){ return a.avg - b.avg; });
@@ -1047,6 +1349,107 @@
     return buf;
   }
 
+  // Группировка по предмету с фильтром по группе (1 = предметники, 2 = воспитатели/
+  // специалисты), без учёта территории — база+низкий объединены (для сводных
+  // таблиц мероприятий).
+  function groupBySubjectAllForGroup(records, group){
+    var bySubj = {};
+    records.forEach(function(r){
+      if (r.group !== group) return;
+      bySubj[r.subject] = bySubj[r.subject] || [];
+      bySubj[r.subject].push(r);
+    });
+    return bySubj;
+  }
+
+  // Сводная таблица «предмет × задания-дефициты» с мероприятиями по трём уровням.
+  // По горизонтали — номера заданий с дефицитом (среднее <50%, база+низкий
+  // объединены, вся выборка), по вертикали — % выполнения и мероприятия УМЦ/ГМО/ШМО.
+  function writeMeasuresTableSheet(ws, subject, subjRecords, empiricalMax){
+    var taskRows = collectTaskRows(subject, empiricalMax);
+    var agg = [];
+    taskRows.forEach(function(t){
+      var pcts = [];
+      subjRecords.forEach(function(r){
+        var sc = personScore(r, t.block, t.pos);
+        if (sc !== null && t.max) pcts.push(sc / t.max * 100);
+      });
+      if (pcts.length === 0) return;
+      var avg = pcts.reduce(function(a,b){return a+b;},0) / pcts.length;
+      if (avg >= 50) return; // только дефициты — среднее ниже 50%
+      agg.push({
+        taskNum: t.taskNum, tema: t.tema, blockLabel: t.blockLabel, block: t.block,
+        avg: Math.round(avg*10)/10, n: pcts.length,
+        recommend: recommendForDeficit(subject, t.block, t.tema, t.taskNum)
+      });
+    });
+    agg.sort(function(a,b){ return a.taskNum - b.taskNum; }); // по номеру задания, слева направо
+
+    var lowN = subjRecords.filter(function(r){ return r.overallLevel === 'Низкий'; }).length;
+    var baseN = subjRecords.filter(function(r){ return r.overallLevel === 'Базовый'; }).length;
+
+    var titleRow = 1;
+    setCell(ws, titleRow, 1, 'СВОДНАЯ ТАБЛИЦА МЕРОПРИЯТИЙ ПО ЛИКВИДАЦИИ ДЕФИЦИТОВ — ' + subject, {bold:true, size:13});
+    var infoRow = 2;
+    setCell(ws, infoRow, 1, 'Вся выборка (все территории), база+низкий объединены. Кол-во чел.: ' + subjRecords.length +
+      ' (низкий: ' + lowN + ', базовый: ' + baseN + ')', {italic:true});
+
+    var headerRow = 4;
+    var labelCol = 1;
+    setCell(ws, headerRow, labelCol, '№ задания с дефицитом (<50%)', {bold:true, color:'FFFFFFFF', fill:COLOR.header, border:true, wrap:true});
+
+    if (agg.length === 0){
+      setCell(ws, headerRow, labelCol+1, '(дефицитов <50% не выявлено)', {border:true, wrap:true});
+      ws.columns = [{width:30},{width:40}];
+      return;
+    }
+
+    var rowLabels = [
+      {key:'tnum', label:'№ задания с дефицитом (<50%)'},
+      {key:'tema', label:'Тема задания'},
+      {key:'pct', label:'% выполнения'},
+      {key:'umc', label:'Межмуниципальный уровень (УМЦ)'},
+      {key:'gmo', label:'ГМО'},
+      {key:'shmo', label:'ШМО'}
+    ];
+
+    // заголовки строк (первая колонка)
+    rowLabels.forEach(function(rl, i){
+      setCell(ws, headerRow + i, labelCol, rl.label, {bold:true, color:'FFFFFFFF', fill:COLOR.header, border:true, wrap:true});
+    });
+
+    agg.forEach(function(a, ci){
+      var col = labelCol + 1 + ci;
+      setCell(ws, headerRow + 0, col, a.taskNum, {bold:true, fill:COLOR.subheader, border:true, wrap:true});
+      setCell(ws, headerRow + 1, col, a.tema, {border:true, wrap:true});
+      setCell(ws, headerRow + 2, col, a.avg, {border:true, wrap:true, fill:pctFillArgb(a.avg)});
+      setCell(ws, headerRow + 3, col, a.recommend.umc.map(function(x){return x.title;}).join('\n'), {border:true, wrap:true});
+      setCell(ws, headerRow + 4, col, a.recommend.gmo.map(function(x){return x.title;}).join('\n'), {border:true, wrap:true});
+      setCell(ws, headerRow + 5, col, a.recommend.shmo.map(function(x){return x.title;}).join('\n'), {border:true, wrap:true});
+    });
+
+    var cols = [{width:30}];
+    agg.forEach(function(){ cols.push({width:42}); });
+    ws.columns = cols;
+    ws.getRow(headerRow + 1).height = 60;
+    ws.getRow(headerRow + 3).height = 90;
+    ws.getRow(headerRow + 4).height = 90;
+    ws.getRow(headerRow + 5).height = 90;
+  }
+
+  async function buildMeasuresTableWorkbook(records, group, empiricalMax){
+    var wb = new ExcelJS.Workbook();
+    var bySubj = groupBySubjectAllForGroup(records, group);
+    var subjects = Object.keys(bySubj).sort(function(a,b){return a.localeCompare(b,'ru');});
+    if (subjects.length === 0){ wb.addWorksheet('Нет данных'); }
+    subjects.forEach(function(subj){
+      var ws = wb.addWorksheet(sanitizeSheetName(subj) || 'Лист');
+      writeMeasuresTableSheet(ws, subj, bySubj[subj], empiricalMax);
+    });
+    var buf = await wb.xlsx.writeBuffer();
+    return buf;
+  }
+
   async function buildDashboardFiles(records, empiricalMax, territories){
     var out = [];
     for (var ti=0; ti<territories.length; ti++){
@@ -1100,8 +1503,12 @@
         {key:'9_СВОД_ДЕФИЦИТЫ_ПРЕДМЕТНИКИ', label:'Свод дефицитов (база+низкий, <50%) — предметники, по территориям', group:1, kind:'svod-deficit'},
         {key:'10_СВОД_ДЕФИЦИТЫ_ВОСПИТАТЕЛИ_СПЕЦИАЛИСТЫ', label:'Свод дефицитов (база+низкий, <50%) — воспитатели/специалисты, по территориям', group:2, kind:'svod-deficit'},
         {key:'11_СВОД_ДЕФИЦИТЫ_ОБЩИЙ_ПО_РЕГИОНУ', label:'Свод дефицитов по региону в целом (база+низкий, <50%, все территории)', kind:'svod-deficit-total'},
-        {key:'12_ДАШБОРД_ДЕФИЦИТОВ', label:'Дашборд: треки (УМЦ/ГМО/ШМО), таймлайн, чек-лист, обратная связь', kind:'dashboard'},
-        {key:'13_ТРЕНАЖЁР_САМОДИАГНОСТИКА', label:'Тренажёр самодиагностики (квиз по дефицитам)', kind:'quiz'}
+        {key:'12_ТАБЛИЦА_МЕРОПРИЯТИЙ_ПРЕДМЕТНИКИ', label:'Сводная таблица мероприятий (предмет × задания-дефициты) — предметники', group:1, kind:'measures-table'},
+        {key:'13_ТАБЛИЦА_МЕРОПРИЯТИЙ_ВОСПИТАТЕЛИ_СПЕЦИАЛИСТЫ', label:'Сводная таблица мероприятий (предмет × задания-дефициты) — воспитатели/специалисты', group:2, kind:'measures-table'},
+        {key:'14_ДАШБОРД_ДЕФИЦИТОВ', label:'Дашборд: треки (УМЦ/ГМО/ШМО), таймлайн, чек-лист, обратная связь', kind:'dashboard'},
+        {key:'15_ТРЕНАЖЁР_САМОДИАГНОСТИКА', label:'Тренажёр самодиагностики (квиз по дефицитам)', kind:'quiz'},
+        {key:'16_ПОДГОТОВКА_НОВЫЕ_ТЕМЫ_2026', label:'Проактивная подготовка к новым темам спецификации 2026 (отдельный файл на предмет)', kind:'new-topics-prep'},
+        {key:'17_ТИПОВОЙ_ПЛАН_МЕРОПРИЯТИЙ', label:'Сводный типовой план работы по мероприятиям (УМЦ/ГМО/ШМО: дефициты + новые темы 2026)', kind:'typical-plan'}
       ];
 
       generatedFiles = [];
@@ -1119,10 +1526,18 @@
         } else if (pkg.kind === 'svod-deficit-total'){
           var totalBuf = await buildSvodDeficitTotalWorkbook(records, empiricalMax);
           files = [{territory: 'Регион', buffer: totalBuf}];
+        } else if (pkg.kind === 'measures-table'){
+          var measuresBuf = await buildMeasuresTableWorkbook(records, pkg.group, empiricalMax);
+          files = [{territory: 'Регион', buffer: measuresBuf}];
         } else if (pkg.kind === 'dashboard'){
           files = await buildDashboardFiles(records, empiricalMax, territories);
         } else if (pkg.kind === 'quiz'){
           files = await buildQuizFiles(records, empiricalMax, territories);
+        } else if (pkg.kind === 'new-topics-prep'){
+          files = await buildAllNewTopicsPrepFiles();
+        } else if (pkg.kind === 'typical-plan'){
+          var planBuf = await buildTypicalPlanWorkbook(records, empiricalMax);
+          files = [{territory: 'Регион', buffer: planBuf}];
         }
         files.forEach(function(f){
           var blob, ext, mime;
@@ -1133,7 +1548,8 @@
             mime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'; ext = '.xlsx';
             blob = new Blob([f.buffer], {type: mime});
           }
-          var fname = (pkg.kind === 'svod-deficit-total') ? (pkg.key + ext) : (pkg.key + '_' + f.territory + ext);
+          var singleFileKinds = (pkg.kind === 'svod-deficit-total' || pkg.kind === 'measures-table' || pkg.kind === 'typical-plan');
+          var fname = singleFileKinds ? (pkg.key + ext) : (pkg.key + '_' + f.territory + ext);
           generatedFiles.push({
             pkgKey: pkg.key, pkgLabel: pkg.label,
             territory: f.territory,
