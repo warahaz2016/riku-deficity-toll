@@ -705,12 +705,12 @@
       var fgGen = literacyGenitive(fgClean);
       umc.push({title:'Семинар/вебинар «' + fgClean + ': подходы к формированию ' + lessonPhrase(subject) + '»', format:'семинар/вебинар', org:'Межмуниципальный УМЦ'});
       gmo.push({title: altPick(taskNum,
-        'Мастер-класс: разбор типовых заданий по теме «' + label + '»',
-        'Семинар-практикум: разбор типовых заданий по теме «' + label + '»'),
+        'Мастер-класс «Разбор заданий по формированию ' + fgGen + ' ' + lessonPhrase(subject) + '»',
+        'Семинар-практикум «Разбор заданий по формированию ' + fgGen + ' ' + lessonPhrase(subject) + '»'),
         format: altPick(taskNum,'мастер-класс','семинар-практикум'), org:'ГМО по предмету'});
       shmo.push({title: altPick(taskNum,
-        'Тренинг «Аспекты формирования ' + fgGen + '»',
-        'Кейс-семинар «Формирование ' + fgGen + ' на уроках»'),
+        'Тренинг «Аспекты формирования ' + fgGen + ' ' + lessonPhrase(subject) + '»',
+        'Кейс-семинар «Формирование ' + fgGen + ' ' + lessonPhrase(subject) + '»'),
         format: altPick(taskNum,'тренинг','кейс-семинар'), org:'ШМО'});
       return {umc:umc, gmo:gmo, shmo:shmo};
     }
@@ -1349,11 +1349,13 @@
     return bySubj;
   }
 
-  // Общий свод дефицитов по региону в целом (все территории и обе группы вместе,
-  // база+низкий объединены, только задания <50%) — один файл, не по территориям.
-  async function buildSvodDeficitTotalWorkbook(records, empiricalMax){
+  // Общий свод дефицитов по региону в целом (все территории вместе, база+низкий
+  // объединены, только задания <50%) — один файл, не по территориям.
+  // Если передан group (1 = предметники, 2 = воспитатели/специалисты), берутся
+  // только записи этой группы; иначе — обе группы вместе (общий файл).
+  async function buildSvodDeficitTotalWorkbook(records, empiricalMax, group){
     var wb = new ExcelJS.Workbook();
-    var bySubj = groupBySubjectAll(records);
+    var bySubj = group ? groupBySubjectAllForGroup(records, group) : groupBySubjectAll(records);
     var subjects = Object.keys(bySubj).sort(function(a,b){return a.localeCompare(b,'ru');});
     if (subjects.length === 0){ wb.addWorksheet('Нет данных'); }
     subjects.forEach(function(subj){
@@ -1377,10 +1379,9 @@
     return bySubj;
   }
 
-  // Сводная таблица «предмет × задания-дефициты» с мероприятиями по трём уровням.
-  // По горизонтали — номера заданий с дефицитом (среднее <50%, база+низкий
-  // объединены, вся выборка), по вертикали — % выполнения и мероприятия УМЦ/ГМО/ШМО.
-  function writeMeasuresTableSheet(ws, subject, subjRecords, empiricalMax){
+  // Общая функция подсчёта агрегированных по заданиям дефицитов (среднее <50%,
+  // база+низкий объединены) для заданного набора записей одного предмета.
+  function computeSubjectTaskDeficits(subject, subjRecords, empiricalMax){
     var taskRows = collectTaskRows(subject, empiricalMax);
     var agg = [];
     taskRows.forEach(function(t){
@@ -1398,71 +1399,131 @@
         recommend: recommendForDeficit(subject, t.block, t.tema, t.taskNum)
       });
     });
-    agg.sort(function(a,b){ return a.taskNum - b.taskNum; }); // по номеру задания, слева направо
+    agg.sort(function(a,b){ return a.taskNum - b.taskNum; }); // по номеру задания
+    return agg;
+  }
+
+  // Сводная таблица «задания-дефициты × мероприятия» — только уровень
+  // межмуниципальной методической службы (УМЦ), работающей с усреднёнными по
+  // всем территориям дефицитами. Номера заданий расположены по строкам.
+  function writeUmcMeasuresSheet(ws, subject, subjRecords, empiricalMax){
+    var agg = computeSubjectTaskDeficits(subject, subjRecords, empiricalMax);
 
     var lowN = subjRecords.filter(function(r){ return r.overallLevel === 'Низкий'; }).length;
     var baseN = subjRecords.filter(function(r){ return r.overallLevel === 'Базовый'; }).length;
 
     var titleRow = 1;
-    setCell(ws, titleRow, 1, 'СВОДНАЯ ТАБЛИЦА МЕРОПРИЯТИЙ ПО ЛИКВИДАЦИИ ДЕФИЦИТОВ — ' + subject, {bold:true, size:13});
+    setCell(ws, titleRow, 1, 'ТАБЛИЦА МЕРОПРИЯТИЙ УМЦ — ' + subject, {bold:true, size:13});
     var infoRow = 2;
-    setCell(ws, infoRow, 1, 'Вся выборка (все территории), база+низкий объединены. Кол-во чел.: ' + subjRecords.length +
+    setCell(ws, infoRow, 1, 'Межмуниципальный уровень: усреднённые дефициты по всей выборке (все территории), база+низкий объединены. Кол-во чел.: ' + subjRecords.length +
       ' (низкий: ' + lowN + ', базовый: ' + baseN + ')', {italic:true});
 
     var headerRow = 4;
-    var labelCol = 1;
-    setCell(ws, headerRow, labelCol, '№ задания с дефицитом (<50%)', {bold:true, color:'FFFFFFFF', fill:COLOR.header, border:true, wrap:true});
+    var cols = [
+      {key:'tnum', label:'№ задания с дефицитом (<50%)', width:14},
+      {key:'tema', label:'Тема задания', width:38},
+      {key:'pct', label:'% выполнения (среднее)', width:16},
+      {key:'umc', label:'Мероприятие межмуниципальной методической службы (УМЦ)', width:60}
+    ];
+    cols.forEach(function(c, ci){
+      setCell(ws, headerRow, ci+1, c.label, {bold:true, color:'FFFFFFFF', fill:COLOR.header, border:true, wrap:true});
+    });
 
     if (agg.length === 0){
-      setCell(ws, headerRow, labelCol+1, '(дефицитов <50% не выявлено)', {border:true, wrap:true});
-      ws.columns = [{width:30},{width:40}];
+      setCell(ws, headerRow+1, 1, '(дефицитов <50% не выявлено)', {border:true, wrap:true});
+      ws.columns = cols.map(function(c){ return {width:c.width}; });
       return;
     }
 
-    var rowLabels = [
-      {key:'tnum', label:'№ задания с дефицитом (<50%)'},
-      {key:'tema', label:'Тема задания'},
-      {key:'pct', label:'% выполнения'},
-      {key:'umc', label:'Межмуниципальный уровень (УМЦ)'},
-      {key:'gmo', label:'ГМО'},
-      {key:'shmo', label:'ШМО'}
-    ];
-
-    // заголовки строк (первая колонка)
-    rowLabels.forEach(function(rl, i){
-      setCell(ws, headerRow + i, labelCol, rl.label, {bold:true, color:'FFFFFFFF', fill:COLOR.header, border:true, wrap:true});
+    agg.forEach(function(a, ri){
+      var row = headerRow + 1 + ri;
+      setCell(ws, row, 1, a.taskNum, {bold:true, fill:COLOR.subheader, border:true, wrap:true});
+      setCell(ws, row, 2, a.tema, {border:true, wrap:true});
+      setCell(ws, row, 3, a.avg, {border:true, wrap:true, fill:pctFillArgb(a.avg)});
+      setCell(ws, row, 4, a.recommend.umc.map(function(x){return x.title;}).join('\n'), {border:true, wrap:true});
     });
 
-    agg.forEach(function(a, ci){
-      var col = labelCol + 1 + ci;
-      setCell(ws, headerRow + 0, col, a.taskNum, {bold:true, fill:COLOR.subheader, border:true, wrap:true});
-      setCell(ws, headerRow + 1, col, a.tema, {border:true, wrap:true});
-      setCell(ws, headerRow + 2, col, a.avg, {border:true, wrap:true, fill:pctFillArgb(a.avg)});
-      setCell(ws, headerRow + 3, col, a.recommend.umc.map(function(x){return x.title;}).join('\n'), {border:true, wrap:true});
-      setCell(ws, headerRow + 4, col, a.recommend.gmo.map(function(x){return x.title;}).join('\n'), {border:true, wrap:true});
-      setCell(ws, headerRow + 5, col, a.recommend.shmo.map(function(x){return x.title;}).join('\n'), {border:true, wrap:true});
-    });
-
-    var cols = [{width:30}];
-    agg.forEach(function(){ cols.push({width:42}); });
-    ws.columns = cols;
-    ws.getRow(headerRow + 1).height = 60;
-    ws.getRow(headerRow + 3).height = 90;
-    ws.getRow(headerRow + 4).height = 90;
-    ws.getRow(headerRow + 5).height = 90;
+    ws.columns = cols.map(function(c){ return {width:c.width}; });
+    agg.forEach(function(a, ri){ ws.getRow(headerRow + 1 + ri).height = 45; });
   }
 
-  async function buildMeasuresTableWorkbook(records, group, empiricalMax){
+  async function buildUmcMeasuresWorkbook(records, group, empiricalMax){
     var wb = new ExcelJS.Workbook();
     var bySubj = groupBySubjectAllForGroup(records, group);
     var subjects = Object.keys(bySubj).sort(function(a,b){return a.localeCompare(b,'ru');});
     if (subjects.length === 0){ wb.addWorksheet('Нет данных'); }
     subjects.forEach(function(subj){
       var ws = wb.addWorksheet(sanitizeSheetName(subj) || 'Лист');
-      writeMeasuresTableSheet(ws, subj, bySubj[subj], empiricalMax);
+      writeUmcMeasuresSheet(ws, subj, bySubj[subj], empiricalMax);
     });
     var buf = await wb.xlsx.writeBuffer();
     return buf;
+  }
+
+  // Таблица мероприятий уровней ГМО и ШМО для КОНКРЕТНОЙ территории — эти
+  // структуры работают с дефицитами (процентами и даже составом заданий),
+  // характерными именно для своей территории, а не с усреднёнными по региону.
+  // Номера заданий расположены по строкам.
+  function writeGmoShmoMeasuresSheet(ws, subject, subjRecords, terrName, empiricalMax){
+    var agg = computeSubjectTaskDeficits(subject, subjRecords, empiricalMax);
+
+    var lowN = subjRecords.filter(function(r){ return r.overallLevel === 'Низкий'; }).length;
+    var baseN = subjRecords.filter(function(r){ return r.overallLevel === 'Базовый'; }).length;
+
+    var titleRow = 1;
+    setCell(ws, titleRow, 1, 'ТАБЛИЦА МЕРОПРИЯТИЙ ГМО И ШМО — ' + subject, {bold:true, size:13});
+    var infoRow = 2;
+    setCell(ws, infoRow, 1, 'Территория: ' + terrName + '. База+низкий объединены. Кол-во чел.: ' + subjRecords.length +
+      ' (низкий: ' + lowN + ', базовый: ' + baseN + ')', {italic:true});
+
+    var headerRow = 4;
+    var cols = [
+      {key:'tnum', label:'№ задания с дефицитом (<50%)', width:14},
+      {key:'tema', label:'Тема задания', width:38},
+      {key:'pct', label:'% выполнения по территории', width:16},
+      {key:'gmo', label:'Мероприятие ГМО', width:55},
+      {key:'shmo', label:'Мероприятие ШМО', width:55}
+    ];
+    cols.forEach(function(c, ci){
+      setCell(ws, headerRow, ci+1, c.label, {bold:true, color:'FFFFFFFF', fill:COLOR.header, border:true, wrap:true});
+    });
+
+    if (agg.length === 0){
+      setCell(ws, headerRow+1, 1, '(дефицитов <50% не выявлено)', {border:true, wrap:true});
+      ws.columns = cols.map(function(c){ return {width:c.width}; });
+      return;
+    }
+
+    agg.forEach(function(a, ri){
+      var row = headerRow + 1 + ri;
+      setCell(ws, row, 1, a.taskNum, {bold:true, fill:COLOR.subheader, border:true, wrap:true});
+      setCell(ws, row, 2, a.tema, {border:true, wrap:true});
+      setCell(ws, row, 3, a.avg, {border:true, wrap:true, fill:pctFillArgb(a.avg)});
+      setCell(ws, row, 4, a.recommend.gmo.map(function(x){return x.title;}).join('\n'), {border:true, wrap:true});
+      setCell(ws, row, 5, a.recommend.shmo.map(function(x){return x.title;}).join('\n'), {border:true, wrap:true});
+    });
+
+    ws.columns = cols.map(function(c){ return {width:c.width}; });
+    agg.forEach(function(a, ri){ ws.getRow(headerRow + 1 + ri).height = 45; });
+  }
+
+  async function buildGmoShmoMeasuresWorkbooks(records, group, empiricalMax, territories){
+    var byTerrSubj = groupBy(records, group, null); // level=null -> база+низкий объединены
+    var out = [];
+    for (var ti=0; ti<territories.length; ti++){
+      var terr = territories[ti];
+      var wb = new ExcelJS.Workbook();
+      var subjDict = byTerrSubj[terr] || {};
+      var subjects = Object.keys(subjDict).sort(function(a,b){return a.localeCompare(b,'ru');});
+      if (subjects.length === 0){ wb.addWorksheet('Нет данных'); }
+      subjects.forEach(function(subj){
+        var ws = wb.addWorksheet(sanitizeSheetName(subj) || 'Лист');
+        writeGmoShmoMeasuresSheet(ws, subj, subjDict[subj], terr, empiricalMax);
+      });
+      var buf = await wb.xlsx.writeBuffer();
+      out.push({territory: terr, buffer: buf});
+    }
+    return out;
   }
 
   async function buildDashboardFiles(records, empiricalMax, territories){
@@ -1517,9 +1578,11 @@
         {key:'8_СВОД_БАЗОВЫЙ_ВОСПИТАТЕЛИ_СПЕЦИАЛИСТЫ', label:'Свод частоты дефицитов — базовый, воспитатели/специалисты', group:2, level:'Базовый', kind:'svod'},
         {key:'9_СВОД_ДЕФИЦИТЫ_ПРЕДМЕТНИКИ', label:'Свод дефицитов (база+низкий, <50%) — предметники, по территориям', group:1, kind:'svod-deficit'},
         {key:'10_СВОД_ДЕФИЦИТЫ_ВОСПИТАТЕЛИ_СПЕЦИАЛИСТЫ', label:'Свод дефицитов (база+низкий, <50%) — воспитатели/специалисты, по территориям', group:2, kind:'svod-deficit'},
-        {key:'11_СВОД_ДЕФИЦИТЫ_ОБЩИЙ_ПО_РЕГИОНУ', label:'Свод дефицитов по региону в целом (база+низкий, <50%, все территории)', kind:'svod-deficit-total'},
-        {key:'12_ТАБЛИЦА_МЕРОПРИЯТИЙ_ПРЕДМЕТНИКИ', label:'Сводная таблица мероприятий (предмет × задания-дефициты) — предметники', group:1, kind:'measures-table'},
-        {key:'13_ТАБЛИЦА_МЕРОПРИЯТИЙ_ВОСПИТАТЕЛИ_СПЕЦИАЛИСТЫ', label:'Сводная таблица мероприятий (предмет × задания-дефициты) — воспитатели/специалисты', group:2, kind:'measures-table'},
+        {key:'11_СВОД_ДЕФИЦИТЫ_ОБЩИЙ_ПО_РЕГИОНУ', label:'Свод дефицитов по региону в целом (база+низкий, <50%, все территории: общий + по группам)', kind:'svod-deficit-total'},
+        {key:'12_ТАБЛИЦА_МЕРОПРИЯТИЙ_УМЦ_ПРЕДМЕТНИКИ', label:'Таблица мероприятий УМЦ (усреднённые дефициты по региону) — предметники', group:1, kind:'measures-table-umc'},
+        {key:'13_ТАБЛИЦА_МЕРОПРИЯТИЙ_УМЦ_ВОСПИТАТЕЛИ_СПЕЦИАЛИСТЫ', label:'Таблица мероприятий УМЦ (усреднённые дефициты по региону) — воспитатели/специалисты', group:2, kind:'measures-table-umc'},
+        {key:'12б_ТАБЛИЦА_МЕРОПРИЯТИЙ_ГМО_ШМО_ПРЕДМЕТНИКИ', label:'Таблица мероприятий ГМО и ШМО по территориям (дефициты своей территории) — предметники', group:1, kind:'measures-table-gmo-shmo'},
+        {key:'13б_ТАБЛИЦА_МЕРОПРИЯТИЙ_ГМО_ШМО_ВОСПИТАТЕЛИ_СПЕЦИАЛИСТЫ', label:'Таблица мероприятий ГМО и ШМО по территориям (дефициты своей территории) — воспитатели/специалисты', group:2, kind:'measures-table-gmo-shmo'},
         {key:'14_ДАШБОРД_ДЕФИЦИТОВ', label:'Дашборд: треки (УМЦ/ГМО/ШМО), таймлайн, чек-лист, обратная связь', kind:'dashboard'},
         {key:'15_ТРЕНАЖЁР_САМОДИАГНОСТИКА', label:'Тренажёр самодиагностики (квиз по дефицитам)', kind:'quiz'},
         {key:'16_ПОДГОТОВКА_НОВЫЕ_ТЕМЫ_2026', label:'Проактивная подготовка к новым темам спецификации 2026 (отдельный файл на предмет)', kind:'new-topics-prep'},
@@ -1539,11 +1602,19 @@
         } else if (pkg.kind === 'svod-deficit'){
           files = await buildSvodDeficitWorkbooks(records, pkg.group, empiricalMax, territories);
         } else if (pkg.kind === 'svod-deficit-total'){
-          var totalBuf = await buildSvodDeficitTotalWorkbook(records, empiricalMax);
-          files = [{territory: 'Регион', buffer: totalBuf}];
-        } else if (pkg.kind === 'measures-table'){
-          var measuresBuf = await buildMeasuresTableWorkbook(records, pkg.group, empiricalMax);
-          files = [{territory: 'Регион', buffer: measuresBuf}];
+          var totalBufAll = await buildSvodDeficitTotalWorkbook(records, empiricalMax);
+          var totalBufG1 = await buildSvodDeficitTotalWorkbook(records, empiricalMax, 1);
+          var totalBufG2 = await buildSvodDeficitTotalWorkbook(records, empiricalMax, 2);
+          files = [
+            {territory: 'Общий', buffer: totalBufAll},
+            {territory: 'Учителя_предметники', buffer: totalBufG1},
+            {territory: 'Воспитатели_специалисты', buffer: totalBufG2}
+          ];
+        } else if (pkg.kind === 'measures-table-umc'){
+          var umcBuf = await buildUmcMeasuresWorkbook(records, pkg.group, empiricalMax);
+          files = [{territory: 'Регион', buffer: umcBuf}];
+        } else if (pkg.kind === 'measures-table-gmo-shmo'){
+          files = await buildGmoShmoMeasuresWorkbooks(records, pkg.group, empiricalMax, territories);
         } else if (pkg.kind === 'dashboard'){
           files = await buildDashboardFiles(records, empiricalMax, territories);
         } else if (pkg.kind === 'quiz'){
@@ -1563,7 +1634,7 @@
             mime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'; ext = '.xlsx';
             blob = new Blob([f.buffer], {type: mime});
           }
-          var singleFileKinds = (pkg.kind === 'svod-deficit-total' || pkg.kind === 'measures-table' || pkg.kind === 'typical-plan');
+          var singleFileKinds = (pkg.kind === 'measures-table-umc' || pkg.kind === 'typical-plan');
           var fname = singleFileKinds ? (pkg.key + ext) : (pkg.key + '_' + f.territory + ext);
           generatedFiles.push({
             pkgKey: pkg.key, pkgLabel: pkg.label,
