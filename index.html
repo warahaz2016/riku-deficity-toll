@@ -3,119 +3,229 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>РИКУ · Автоматическая аналитика дефицитов</title>
+<title>РИКУ · Аналитика дефицитов педагогов</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
+  /* Палитра «бургунди + шампань»: глубокий винный как основной цвет,
+     тёплый шампань — для акцентов, нейтрали с лёгким розовым подтоном. */
   :root{
-    --navy:#132a3e; --accent:#2563a8; --accent-dark:#184a80; --accent-soft:#eaf2fa;
-    --bg:#eef2f6; --card:#ffffff; --border:#e1e7ee; --border-soft:#edf1f5;
-    --text:#1b2a38; --muted:#66798c; --muted-soft:#93a2b1;
-    --good:#2b8a3e; --good-bg:#ecfaef; --good-border:#bfe8c8;
-    --warn:#a15c00; --warn-bg:#fff6e6; --warn-border:#f3d99b;
-    --bad:#b02a2a; --bad-bg:#fdefef; --bad-border:#f2c4c4;
-    --radius:12px; --shadow:0 1px 2px rgba(19,42,62,.04), 0 4px 14px rgba(19,42,62,.05);
+    --wine-900:#3d0b1b; --wine-800:#55102a; --wine-700:#6e1736; --wine-600:#8a2445;
+    --wine-100:#f6e9ed; --wine-50:#fbf5f7;
+    --champagne:#d8b47a; --champagne-soft:#f6ecdb; --champagne-ink:#7a5823;
+    --bg:#f4eff1; --card:#ffffff; --line:#eadfe3; --line-soft:#f2eaed;
+    --ink:#2b1a20; --ink-soft:#6f5a61; --ink-mute:#a08d93;
+    --good:#2f7a4f; --good-bg:#ebf6ef; --good-line:#c4e3cf;
+    --warn:#8a5a12; --warn-bg:#fdf5e7; --warn-line:#efd8ad;
+    --radius:16px;
+    --shadow:0 1px 2px rgba(61,11,27,.05), 0 12px 32px -18px rgba(61,11,27,.28);
   }
   *{box-sizing:border-box;}
   html{-webkit-font-smoothing:antialiased;}
   body{
-    margin:0; padding:0;
-    background:
-      radial-gradient(1200px 400px at 15% -10%, rgba(37,99,168,.06), transparent 60%),
-      var(--bg);
-    font-family:"Segoe UI",-apple-system,BlinkMacSystemFont,Roboto,Arial,sans-serif; color:var(--text);
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:"Manrope","Segoe UI",-apple-system,Roboto,Arial,sans-serif; font-size:14px; line-height:1.5;
   }
-  .riku-wrap{max-width:980px; margin:0 auto; padding:36px 20px 60px;}
-  .riku-header{text-align:center; margin-bottom:30px;}
-  .riku-header h1{
-    font-size:24px; color:var(--navy); margin:0 0 8px; font-weight:700; letter-spacing:-.1px;
+  .riku-wrap{max-width:1000px; margin:0 auto; padding:28px 18px 56px;}
+
+  /* ---------- шапка ---------- */
+  .riku-header{
+    position:relative; overflow:hidden;
+    background:linear-gradient(135deg, var(--wine-900) 0%, var(--wine-700) 55%, var(--wine-600) 100%);
+    color:#fff; border-radius:22px; padding:34px 34px 30px; margin-bottom:20px;
+    box-shadow:0 18px 40px -22px rgba(61,11,27,.65);
   }
-  .riku-header p{color:var(--muted); font-size:13.5px; margin:0 auto; max-width:640px;}
+  .riku-header::after{
+    content:""; position:absolute; right:-80px; top:-120px; width:340px; height:340px; border-radius:50%;
+    background:radial-gradient(circle, rgba(216,180,122,.30), rgba(216,180,122,0) 65%);
+    pointer-events:none;
+  }
+  .riku-eyebrow{
+    display:inline-block; font-size:11px; font-weight:700; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--champagne); margin-bottom:12px;
+  }
+  .riku-header h1{font-size:30px; line-height:1.15; margin:0 0 10px; font-weight:800; letter-spacing:-.4px; text-wrap:balance; max-width:22ch;}
+  .riku-header p{margin:0; color:#f0dce3; font-size:14.5px; max-width:62ch;}
+  .riku-chips{display:flex; flex-wrap:wrap; gap:8px; margin-top:20px; position:relative; z-index:1;}
+  .riku-chip{
+    font-size:12px; font-weight:600; color:#fff; padding:6px 12px; border-radius:999px;
+    background:rgba(255,255,255,.10); border:1px solid rgba(255,255,255,.18);
+  }
+  .riku-chip b{color:var(--champagne); font-weight:800;}
+
+  /* ---------- карточки ---------- */
   .riku-card{
-    background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
     padding:24px 26px; margin-bottom:18px; box-shadow:var(--shadow);
   }
-  .riku-drop{
-    border:1.5px dashed #c3d2e2; border-radius:10px; padding:36px 20px; text-align:center;
-    cursor:pointer; transition:border-color .15s, background .15s; background:#f8fafc;
+  .riku-card-title{display:flex; align-items:center; gap:12px; margin:0 0 16px;}
+  .riku-card-title .n{
+    flex:0 0 auto; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    background:var(--wine-100); color:var(--wine-700); font-weight:800; font-size:14px;
   }
-  .riku-drop:hover, .riku-drop.dragover{ border-color:var(--accent); background:var(--accent-soft); }
-  .riku-drop .ico{font-size:34px; margin-bottom:10px;}
-  .riku-drop .title{font-weight:650; color:var(--navy); font-size:15px; margin-bottom:4px;}
-  .riku-drop .hint{font-size:12.5px; color:var(--muted);}
+  .riku-card-title h3{margin:0; font-size:17px; font-weight:800; color:var(--wine-800);}
+
+  .riku-drop{
+    border:1.5px dashed #dcc3cb; border-radius:14px; padding:34px 20px; text-align:center;
+    cursor:pointer; transition:border-color .15s, background .15s; background:var(--wine-50);
+  }
+  .riku-drop:hover, .riku-drop.dragover{border-color:var(--wine-600); background:var(--wine-100);}
+  .riku-drop:focus-visible{outline:3px solid var(--champagne); outline-offset:3px;}
+  .riku-drop .ico{
+    width:52px; height:52px; margin:0 auto 12px; border-radius:14px; display:flex; align-items:center; justify-content:center;
+    background:#fff; border:1px solid var(--line); color:var(--wine-700);
+  }
+  .riku-drop .title{font-weight:700; color:var(--wine-800); font-size:15px; margin-bottom:4px;}
+  .riku-drop .hint{font-size:12.5px; color:var(--ink-soft);}
   #riku-file-input{display:none;}
   .riku-filename{
-    margin-top:14px; font-size:13.5px; color:var(--navy); font-weight:600; display:none;
+    margin-top:14px; font-size:13.5px; color:var(--wine-800); font-weight:700; display:none; text-align:center;
   }
+  .riku-format{
+    display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:10px;
+    margin-top:16px; font-size:13.5px; color:var(--ink-soft);
+  }
+  .riku-format label{font-weight:700; color:var(--ink);}
+  .riku-format select{
+    font:inherit; padding:8px 12px; border-radius:10px; border:1px solid var(--line); background:#fff; color:var(--ink);
+  }
+  .riku-format select:focus{outline:2px solid var(--champagne); outline-offset:1px;}
+
   .riku-btn{
-    display:inline-block; background:linear-gradient(155deg, var(--accent) 0%, var(--accent-dark) 100%);
-    color:#fff; border:none; padding:12px 26px;
-    border-radius:9px; font-size:14px; font-weight:650; cursor:pointer;
-    letter-spacing:.1px; box-shadow:0 2px 6px rgba(37,99,168,.28);
-    transition:transform .1s, box-shadow .15s, opacity .15s;
+    display:inline-flex; align-items:center; gap:8px;
+    background:linear-gradient(135deg, var(--wine-700), var(--wine-900));
+    color:#fff; border:none; padding:13px 28px; border-radius:12px;
+    font:inherit; font-size:14.5px; font-weight:700; cursor:pointer;
+    box-shadow:0 8px 18px -10px rgba(85,16,42,.8);
+    transition:transform .1s, box-shadow .15s, filter .15s;
   }
-  .riku-btn:hover{box-shadow:0 4px 12px rgba(37,99,168,.34);}
+  .riku-btn:hover{filter:brightness(1.08);}
   .riku-btn:active{transform:translateY(1px);}
-  .riku-btn:disabled{background:#aab8c6; box-shadow:none; cursor:not-allowed;}
-  .riku-btn.gold{background:#fff; color:var(--accent-dark); border:1.5px solid #cfe0f2; box-shadow:none;}
-  .riku-btn.gold:hover{background:var(--accent-soft); box-shadow:none;}
+  .riku-btn:focus-visible{outline:3px solid var(--champagne); outline-offset:2px;}
+  .riku-btn:disabled{background:#cdbfc4; box-shadow:none; cursor:not-allowed; filter:none;}
+  .riku-btn.gold{
+    background:var(--champagne-soft); color:var(--champagne-ink); border:1px solid #e8d3ad; box-shadow:none;
+  }
+  .riku-btn.gold:hover{background:#f1e2c6; filter:none;}
   .riku-actions{text-align:center; margin-top:18px;}
-  .riku-progress{
-    display:none; margin-top:18px; background:#e4e9ef; border-radius:6px; height:7px; overflow:hidden;
+  .riku-progress{display:none; margin-top:18px; background:var(--wine-100); border-radius:6px; height:8px; overflow:hidden;}
+  .riku-progress .bar{height:100%; width:0%; background:linear-gradient(90deg, var(--wine-600), var(--champagne)); transition:width .35s ease;}
+  .riku-status{text-align:center; font-size:12.5px; color:var(--ink-soft); margin-top:10px; min-height:18px;}
+
+  /* ---------- сводка ---------- */
+  .riku-stats{display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; margin-bottom:14px;}
+  .riku-stat{background:var(--wine-50); border:1px solid var(--line-soft); border-radius:12px; padding:14px 16px;}
+  .riku-stat .num{font-size:26px; font-weight:800; color:var(--wine-700); line-height:1.05; font-variant-numeric:tabular-nums;}
+  .riku-stat .lbl{font-size:11.5px; color:var(--ink-soft); margin-top:4px;}
+  .riku-warn{
+    background:var(--warn-bg); border:1px solid var(--warn-line); padding:10px 14px; border-radius:12px;
+    font-size:13px; color:var(--warn); margin-bottom:10px;
   }
-  .riku-progress .bar{height:100%; width:0%; background:linear-gradient(90deg, var(--accent), var(--accent-dark)); transition:width .35s ease;}
-  .riku-status{text-align:center; font-size:12.5px; color:var(--muted); margin-top:10px; min-height:18px;}
-  .riku-summary h3{color:var(--navy); font-size:15.5px; margin:0 0 14px; font-weight:650;}
-  .riku-stats{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:16px;}
-  .riku-stat{background:#f8fafc; border:1px solid var(--border-soft); border-left:3px solid var(--accent); border-radius:9px; padding:12px 16px;}
-  .riku-stat .num{font-size:22px; font-weight:750; color:var(--navy); line-height:1.1;}
-  .riku-stat .lbl{font-size:11px; color:var(--muted); margin-top:3px;}
-  .riku-warn{background:var(--warn-bg); border:1px solid var(--warn-border); border-left:3px solid var(--warn); padding:10px 14px; border-radius:9px; font-size:13px; color:var(--warn); margin-bottom:10px;}
-  .riku-territories{font-size:13px; color:var(--muted); margin-bottom:6px;}
-  .riku-pkg-table{width:100%; border-collapse:collapse; margin-top:10px; font-size:13px;}
-  .riku-pkg-table th{
-    text-align:left; background:var(--navy); color:#fff; padding:10px 12px; font-weight:600;
-    font-size:11.5px; letter-spacing:.3px; text-transform:uppercase;
+  .riku-note{
+    background:var(--champagne-soft); border:1px solid #ecdcbf; padding:10px 14px; border-radius:12px;
+    font-size:13px; color:var(--champagne-ink); margin-bottom:14px;
   }
-  .riku-pkg-table th:first-child{border-radius:8px 0 0 0;}
-  .riku-pkg-table th:last-child{border-radius:0 8px 0 0;}
-  .riku-pkg-table td{padding:9px 12px; border-bottom:1px solid var(--border-soft);}
-  .riku-pkg-table tr:nth-child(even) td{background:#f8fafc;}
-  .riku-pkg-table tr:hover td{background:var(--accent-soft);}
+  .riku-territories{font-size:13px; color:var(--ink-soft);}
+  .riku-territories b{color:var(--ink);}
+
+  /* ---------- выдача: разделы-аккордеоны ---------- */
+  .riku-dl-head{display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px;}
+  .riku-dl-head .riku-card-title{margin:0;}
+  .riku-dl-total{font-size:12.5px; color:var(--ink-soft);}
+  .riku-sections{display:flex; flex-direction:column; gap:10px;}
+  .riku-sec{border:1px solid var(--line); border-radius:14px; background:#fff; overflow:hidden; transition:box-shadow .15s, border-color .15s;}
+  .riku-sec[open]{border-color:#d9bcc6; box-shadow:0 10px 26px -20px rgba(61,11,27,.5);}
+  .riku-sec > summary{
+    list-style:none; cursor:pointer; display:flex; align-items:center; gap:14px; padding:14px 18px;
+    user-select:none;
+  }
+  .riku-sec > summary::-webkit-details-marker{display:none;}
+  .riku-sec > summary:hover{background:var(--wine-50);}
+  .riku-sec > summary:focus-visible{outline:3px solid var(--champagne); outline-offset:-3px;}
+  .riku-sec .ic{
+    flex:0 0 auto; width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center;
+    background:var(--wine-100); color:var(--wine-700);
+  }
+  .riku-sec[open] .ic{background:var(--wine-700); color:#fff;}
+  .riku-sec .tx{flex:1 1 auto; min-width:0;}
+  .riku-sec .tx .t{font-weight:800; font-size:15px; color:var(--wine-800);}
+  .riku-sec .tx .d{font-size:12.5px; color:var(--ink-soft); margin-top:1px;}
+  .riku-sec .cnt{
+    flex:0 0 auto; font-size:12px; font-weight:800; color:var(--champagne-ink); background:var(--champagne-soft);
+    border:1px solid #ecdcbf; padding:4px 10px; border-radius:999px; font-variant-numeric:tabular-nums; white-space:nowrap;
+  }
+  .riku-sec .chev{flex:0 0 auto; color:var(--ink-mute); transition:transform .2s;}
+  .riku-sec[open] .chev{transform:rotate(180deg); color:var(--wine-700);}
+  .riku-sec-body{padding:4px 18px 18px; border-top:1px solid var(--line-soft);}
+  .riku-sec-tools{display:flex; justify-content:flex-end; margin:12px 0 4px;}
+  .riku-mini-btn{
+    font:inherit; font-size:12.5px; font-weight:700; color:var(--wine-700); background:#fff;
+    border:1px solid #dcc3cb; border-radius:10px; padding:7px 12px; cursor:pointer;
+  }
+  .riku-mini-btn:hover{background:var(--wine-50);}
+  .riku-mini-btn:focus-visible{outline:2px solid var(--champagne); outline-offset:1px;}
+  .riku-pkg{padding:12px 0; border-bottom:1px dashed var(--line);}
+  .riku-pkg:last-child{border-bottom:none; padding-bottom:0;}
+  .riku-pkg-title{font-size:13px; font-weight:700; color:var(--ink); margin-bottom:9px;}
+  .riku-pkg-title span{font-weight:600; color:var(--ink-mute); margin-left:6px;}
+  .riku-files{display:flex; flex-wrap:wrap; gap:8px;}
   .riku-dl{
-    color:var(--accent-dark); text-decoration:none; font-weight:650; font-size:12.5px;
-    border:1px solid #cfe0f2; border-radius:7px; padding:5px 12px; white-space:nowrap; background:var(--accent-soft);
-    transition:background .15s;
+    display:inline-flex; align-items:center; gap:7px; max-width:100%;
+    font-size:12.5px; font-weight:600; color:var(--wine-800); text-decoration:none;
+    background:var(--wine-50); border:1px solid #ead7dd; border-radius:10px; padding:7px 12px;
+    transition:background .15s, border-color .15s, color .15s;
   }
-  .riku-dl:hover{background:#dcebf9;}
-  .riku-footer-note{font-size:12px; color:var(--muted-soft); text-align:center; margin-top:22px;}
+  .riku-dl:hover{background:var(--wine-700); border-color:var(--wine-700); color:#fff;}
+  .riku-dl:focus-visible{outline:2px solid var(--champagne); outline-offset:1px;}
+  .riku-dl svg{flex:0 0 auto;}
+  .riku-dl .nm{overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .riku-dl .ext{font-size:10.5px; font-weight:800; letter-spacing:.04em; color:var(--ink-mute);}
+  .riku-dl:hover .ext{color:#f0dce3;}
+
+  .riku-footer-note{font-size:12px; color:var(--ink-mute); text-align:center; margin-top:22px;}
   .riku-hidden{display:none;}
   @media (max-width:600px){
-    .riku-header h1{font-size:20px;}
+    .riku-header{padding:26px 20px 22px; border-radius:18px;}
+    .riku-header h1{font-size:23px;}
     .riku-card{padding:18px;}
+    .riku-sec > summary{padding:12px 14px; gap:10px;}
+    .riku-sec .ic{width:34px; height:34px;}
+    .riku-sec-body{padding:4px 14px 14px;}
   }
+  @media (prefers-reduced-motion: reduce){ *{transition:none !important;} }
 </style>
 </head>
 <body>
 <div class="riku-wrap">
 
   <div class="riku-header">
-    <h1>Автоматическая аналитика дефицитов РИКУ</h1>
-    <p>Загрузите сводный файл результатов диагностики (.xlsx) — система сама распределит педагогов по территориям, предметам и уровням подготовки и подготовит комплект файлов с разбором дефицитов по каждому заданию.</p>
+    <span class="riku-eyebrow">РИКУ · диагностика педагогов</span>
+    <h1>Автоматическая аналитика дефицитов</h1>
+    <p>Загрузите сводный файл результатов диагностики — система распределит педагогов по территориям, предметам и уровням подготовки и соберёт комплект отчётов с разбором дефицитов и планом мероприятий.</p>
+    <div class="riku-chips">
+      <span class="riku-chip"><b>17</b> видов отчётов</span>
+      <span class="riku-chip">УМЦ · ГМО · ШМО</span>
+      <span class="riku-chip">Старый и новый формат КУРО</span>
+      <span class="riku-chip">Файл не покидает ваш компьютер</span>
+    </div>
   </div>
 
   <div class="riku-card">
-    <div class="riku-drop" id="riku-drop">
-      <div class="ico">📊</div>
+    <div class="riku-card-title"><span class="n">1</span><h3>Загрузите СВОД</h3></div>
+    <div class="riku-drop" id="riku-drop" tabindex="0" role="button" aria-label="Выбрать файл СВОД">
+      <div class="ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M12 18v-6"/><path d="M9.5 14.5 12 12l2.5 2.5"/></svg></div>
       <div class="title">Перетащите файл сюда или нажмите, чтобы выбрать</div>
-      <div class="hint">Поддерживается формат .xlsx (структура «СВОД РИКУ»)</div>
+      <div class="hint">Формат .xlsx — выгрузка «СВОД РИКУ»</div>
       <input type="file" id="riku-file-input" accept=".xlsx">
     </div>
     <div class="riku-filename" id="riku-filename"></div>
-    <div style="margin-top:14px; font-size:13.5px; color:#3a4a6b; text-align:center;">
-      <label for="riku-format-select" style="font-weight:600; margin-right:8px;">Формат СВОД:</label>
-      <select id="riku-format-select" style="padding:6px 10px; border-radius:8px; border:1px solid #b7c4e0; font-size:13.5px;">
+    <div class="riku-format">
+      <label for="riku-format-select">Формат СВОД:</label>
+      <select id="riku-format-select">
         <option value="auto" selected>Определить автоматически</option>
         <option value="old">Старый (до 2026, 20 заданий)</option>
         <option value="new">Новый (с 2026, 23 задания у предметников)</option>
@@ -129,28 +239,26 @@
   </div>
 
   <div class="riku-card riku-summary riku-hidden" id="riku-summary-card">
-    <h3>Результаты обработки</h3>
+    <div class="riku-card-title"><span class="n">2</span><h3>Что нашлось в файле</h3></div>
     <div class="riku-stats" id="riku-stats"></div>
     <div id="riku-warnings"></div>
     <div class="riku-territories" id="riku-territories"></div>
   </div>
 
   <div class="riku-card riku-hidden" id="riku-download-card">
-    <h3 style="color:var(--navy); font-size:17px; margin:0 0 14px;">Скачать готовые файлы</h3>
-    <div class="riku-actions" style="margin-bottom:6px;">
-      <button class="riku-btn gold" id="riku-zip-btn">⬇ Скачать всё одним архивом (ZIP)</button>
+    <div class="riku-dl-head">
+      <div class="riku-card-title"><span class="n">3</span><h3>Готовые отчёты по направлениям</h3></div>
+      <button class="riku-btn gold" id="riku-zip-btn">Скачать всё одним архивом</button>
     </div>
-    <table class="riku-pkg-table">
-      <thead><tr><th>Пакет</th><th>Территория/Предмет</th><th>Файл</th><th></th></tr></thead>
-      <tbody id="riku-files-body"></tbody>
-    </table>
+    <div class="riku-dl-total" id="riku-dl-total"></div>
+    <div class="riku-sections" id="riku-sections"></div>
   </div>
 
   <div class="riku-footer-note">Обработка происходит локально в вашем браузере — файл не передаётся на сторонний сервер.</div>
 </div>
 
 <script type="application/json" id="riku-specs-data">{"Английский язык":{"predmet":[{"task_num":1,"tema":"Аудирование. Диалогическая речь","max":4},{"task_num":2,"tema":"Аудирование. Понимание основного содержания прослушанного текста","max":6},{"task_num":3,"tema":"Аудирование. Понимание в прослушанном тексте","max":8},{"task_num":4,"tema":"Чтение и понимание текста. Понимание основного содержания текста","max":6},{"task_num":5,"tema":"Чтение и понимание текста. Понимание структурно- смысловых связей в тексте","max":4},{"task_num":6,"tema":"Морфология. Глаголы","max":2},{"task_num":7,"tema":"Морфология других частей речи","max":3},{"task_num":8,"tema":"Синтаксис","max":6},{"task_num":9,"tema":"Лексика. Словарный запас","max":6},{"task_num":10,"tema":"Лексика. Лексико- грамматические навыки","max":5}],"fg":[{"task_num":11,"tema":"Читательская","max":6},{"task_num":12,"tema":"Читательская грамотность","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":4},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":3},{"task_num":19,"tema":"Научные основы педагогических технологий","max":3},{"task_num":20,"tema":"Проверка ответов учащихся","max":2}]},"Начальная школа":{"predmet":[{"task_num":1,"tema":"Орфография","max":4},{"task_num":2,"tema":"Фонетика","max":4},{"task_num":3,"tema":"Морфология","max":6},{"task_num":4,"tema":"Литературное чтение","max":6},{"task_num":5,"tema":"Текстовые задачи","max":4},{"task_num":6,"tema":"Пространственные отношения и геометрические фигуры","max":4},{"task_num":7,"tema":"Математическая информация","max":6},{"task_num":8,"tema":"Математическая информация. Логические задачи","max":6},{"task_num":9,"tema":"Человек и природа. Живые организмы","max":4},{"task_num":10,"tema":"Человек и природа. География России","max":6}],"fg":[{"task_num":11,"tema":"Читательская грамотность","max":6},{"task_num":12,"tema":"Естественно-научная грамотность","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":4},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":3},{"task_num":19,"tema":"Научные основы педагогических технологий","max":3},{"task_num":20,"tema":"Проверка ответов учащихся","max":2}]},"Литература":{"predmet":[{"task_num":1,"tema":"Теория литературы","max":4},{"task_num":2,"tema":"Теория литературы","max":4},{"task_num":3,"tema":"Устное народное творчество. Древнерусская литература","max":4},{"task_num":4,"tema":"Устное народное творчество. Древнерусская литература","max":4},{"task_num":5,"tema":"Российская литература XVIII - XIX веков.","max":4},{"task_num":6,"tema":"Российская литература XVIII - XIX веков. Проза","max":6},{"task_num":7,"tema":"Теория литературы. Российская литература XVIII - XIX веков. Поэзия","max":10},{"task_num":8,"tema":"Российская литература XX века","max":4},{"task_num":9,"tema":"Теория литературы. Российская литература XX века","max":6},{"task_num":10,"tema":"Теория литературы. Зарубежная литература","max":4}],"fg":[{"task_num":11,"tema":"Читательская грамотность","max":6},{"task_num":12,"tema":"Читательская грамотность","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":4},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":3},{"task_num":19,"tema":"Научные основы педагогических технологий","max":3},{"task_num":20,"tema":"Проверка ответов учащихся","max":2}]},"Обществознание":{"predmet":[{"task_num":1,"tema":"Человек и его социальное окружение","max":4},{"task_num":2,"tema":"Общество, в котором мы живем. Человек в современном изменяющемся мире","max":6},{"task_num":3,"tema":"Человек в экономических отношениях","max":8},{"task_num":4,"tema":"Человек в экономических отношениях","max":4},{"task_num":5,"tema":"Человек в политическом измерении","max":4},{"task_num":6,"tema":"Гражданин и государство","max":4},{"task_num":7,"tema":"Человек как участник правовых отношений. Основы российского права","max":4},{"task_num":8,"tema":"Гражданин и государство","max":2},{"task_num":9,"tema":"Человек в системе социальных отношений. Социальные ценности и нормы","max":8},{"task_num":10,"tema":"Человек в системе социальных отношений. Социальные ценности и нормы","max":6}],"fg":[{"task_num":11,"tema":"Читательская грамотность (Родительский чат)","max":6},{"task_num":12,"tema":"Читательская грамотность (Столкновение цивилизаций)","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":4},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":3},{"task_num":19,"tema":"Научные основы педагогических технологий","max":3},{"task_num":20,"tema":"Проверка ответов учащихся","max":2}]},"Физика":{"predmet":[{"task_num":1,"tema":"Механика. Кинематика","max":4},{"task_num":2,"tema":"Механика. Динамика","max":4},{"task_num":3,"tema":"Механика. Законы сохранения","max":6},{"task_num":4,"tema":"Термодинамика. Молекулярно- кинетическая теория","max":4},{"task_num":5,"tema":"Термодинамика. Термодинамические процессы","max":6},{"task_num":6,"tema":"Электродинамика. Расчет электрических цепей","max":2},{"task_num":7,"tema":"Электродинамика. Электромагнитны е явления","max":8},{"task_num":8,"tema":"Оптика. Оптические явления","max":6},{"task_num":9,"tema":"Квантовая, атомная и ядерная физика. Квантовые явления","max":6},{"task_num":10,"tema":"Электростатика","max":4}],"fg":[{"task_num":11,"tema":"Читательская грамотность","max":6},{"task_num":12,"tema":"Естественно- научная грамотность","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":4},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":3},{"task_num":19,"tema":"Научные основы педагогических технологий","max":3},{"task_num":20,"tema":"Проверка ответов учащихся","max":2}]},"Русский язык":{"predmet":[{"task_num":1,"tema":"Фонетика и графика. Лексика и фразеология","max":6},{"task_num":2,"tema":"Фонетика и графика. Орфоэпия","max":4},{"task_num":3,"tema":"Лексика и фразеология","max":4},{"task_num":4,"tema":"Морфемика и словообразование","max":2},{"task_num":5,"tema":"Морфология и орфография","max":4},{"task_num":6,"tema":"Синтаксис и пунктуация","max":6},{"task_num":7,"tema":"Синтаксис и пунктуация","max":6},{"task_num":8,"tema":"Синтаксис и пунктуация","max":6},{"task_num":9,"tema":"Культура речи","max":8},{"task_num":10,"tema":"Речь и речевое общение","max":4}],"fg":[{"task_num":11,"tema":"Читательская грамотность","max":6},{"task_num":12,"tema":"Читательская грамотность","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":4},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":3},{"task_num":19,"tema":"Научные основы педагогических технологий","max":3},{"task_num":20,"tema":"Проверка ответов учащихся","max":2}]},"Математика":{"predmet":[{"task_num":1,"tema":"Числа и вычисления","max":4},{"task_num":2,"tema":"Уравнения и неравенства","max":4},{"task_num":3,"tema":"Уравнения и неравенства.","max":6},{"task_num":4,"tema":"Уравнения и неравенства. Система уравнений","max":6},{"task_num":5,"tema":"Начала математического анализа. Последовательност и","max":4},{"task_num":6,"tema":"Начала математического анализа. Производная","max":6},{"task_num":7,"tema":"Геометрия. Координаты и векторы","max":6},{"task_num":8,"tema":"Геометрия. Планиметрия","max":4},{"task_num":9,"tema":"Геометрия. Стереометрия","max":6},{"task_num":10,"tema":"Вероятность и статистика","max":4}],"fg":[{"task_num":11,"tema":"Читательская грамотность (Родительский чат)","max":6},{"task_num":12,"tema":"Математическая грамотность (Конкурс и распределение)","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":4},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":3},{"task_num":19,"tema":"Научные основы педагогических технологий","max":3},{"task_num":20,"tema":"Проверка ответов учащихся","max":2}]},"География":{"predmet":[{"task_num":1,"tema":"Географическое изучение Земли. Изображение земной поверхности. География в современном мире","max":2},{"task_num":2,"tema":"География России. Место России в современном мире","max":4},{"task_num":3,"tema":"Географическое изучение Земли. Изображение земной поверхности. География в современном мире","max":6},{"task_num":4,"tema":"География как сфера","max":4},{"task_num":5,"tema":"Человечество на Земле. Материки и страны. Население мира","max":8},{"task_num":6,"tema":"География России. Место России в современном мире","max":6},{"task_num":7,"tema":"Мировое хозяйство","max":4},{"task_num":8,"tema":"Регионы и страны мира","max":4},{"task_num":9,"tema":"Мировое хозяйство","max":6},{"task_num":10,"tema":"Глобальные проблемы человечества","max":6}],"fg":[{"task_num":11,"tema":"Читательская грамотность","max":6},{"task_num":12,"tema":"Естественно- научная грамотность","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":4},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":3},{"task_num":19,"tema":"Научные основы педагогических технологий","max":3},{"task_num":20,"tema":"Проверка ответов учащихся","max":2}]},"Физическая культура":{"predmet":[{"task_num":1,"tema":"Физкультурно- оздоровительная деятельность. Физические упражнения на различные группы мышцы","max":8},{"task_num":2,"tema":"Способы самостоятельной физической деятельности. Развитие физических качеств","max":6},{"task_num":3,"tema":"Знание и физической культуре. Оказание первой помощи","max":8},{"task_num":4,"tema":"Физкультурно- оздоровительная деятельность. Терминология физических упражнений","max":2},{"task_num":5,"tema":"Физкультурно- оздоровительная деятельность. Программы ЛФК","max":6},{"task_num":6,"tema":"Спортивно- оздоровительная деятельность. Правила командных игр","max":4},{"task_num":7,"tema":"Спортивно- оздоровительная деятельность. Классификация видов спорта или техник исполнения","max":6},{"task_num":8,"tema":"Знания о физической культуре. Спортивно- оздоровительная деятельность. Бег","max":4},{"task_num":9,"tema":"Знания о физической культуре. Олимпийское движение","max":2},{"task_num":10,"tema":"Знания о физической культуре. Значимые победы российского спорта","max":4}],"fg":[{"task_num":11,"tema":"Читательская грамотность","max":6},{"task_num":12,"tema":"Естественно-научная грамотность","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":4},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":3},{"task_num":19,"tema":"Научные основы педагогических технологий","max":3},{"task_num":20,"tema":"Проверка ответов учащихся","max":2}]},"Биология":{"predmet":[{"task_num":1,"tema":"Клетка как биологическая система","max":2},{"task_num":2,"tema":"Система и многообразие органического мира","max":4},{"task_num":3,"tema":"Система и многообразие органического мира","max":4},{"task_num":4,"tema":"Организм человека и его здоровье","max":4},{"task_num":5,"tema":"Клетка как биологическая система","max":4},{"task_num":6,"tema":"Экосистемы и присущие им закономерност и","max":4},{"task_num":7,"tema":"Теория эволюции. Развитие жизни на Земле","max":6},{"task_num":8,"tema":"Организм как биологическая система","max":6},{"task_num":9,"tema":"Организм как биологическая система","max":8},{"task_num":10,"tema":"Организм как биологическая система","max":8}],"fg":[{"task_num":11,"tema":"Читательская грамотность","max":6},{"task_num":12,"tema":"Естественно- научная грамотность","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":4},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":3},{"task_num":19,"tema":"Научные основы педагогических технологий","max":3},{"task_num":20,"tema":"Проверка ответов учащихся","max":2}]},"ОБЖ":{"predmet":[{"task_num":1,"tema":"Безопасное и устойчивое развитие личности, общества, государства","max":4},{"task_num":2,"tema":"Основы военной подготовки","max":8},{"task_num":3,"tema":"Культура безопасности","max":4},{"task_num":4,"tema":"Безопасность в быту","max":4},{"task_num":5,"tema":"Безопасность на транспорте","max":4},{"task_num":6,"tema":"Безопасность в общественных местах, в социуме","max":8},{"task_num":7,"tema":"Безопасность в природной среде","max":4},{"task_num":8,"tema":"Основы медицинских знаний. Оказание первой помощи","max":4},{"task_num":9,"tema":"Безопасность в информационном пространстве","max":6},{"task_num":10,"tema":"Противодействие экстремизму и терроризму","max":4}],"fg":[{"task_num":11,"tema":"Читательская грамотность","max":6},{"task_num":12,"tema":"Естественно- научная грамотность","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":4},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":3},{"task_num":19,"tema":"Научные основы педагогических технологий","max":3},{"task_num":20,"tema":"Проверка ответов учащихся","max":2}]},"Химия":{"predmet":[{"task_num":1,"tema":"Теоретические основы химии. Эксперимент в химии","max":4},{"task_num":2,"tema":"Типы расчетных задач. Количественные соотношения в химии","max":6},{"task_num":3,"tema":"Теоретические основы химии. Строение атома, Периодическая система Д.И. Менделеева","max":2},{"task_num":4,"tema":"Теоретические основы химии. Химическая связь","max":4},{"task_num":5,"tema":"Теоретические основы химии. Химические реакции","max":6},{"task_num":6,"tema":"Теоретические основы химии. Дисперсные системы. Растворы","max":4},{"task_num":7,"tema":"Основы неорганической химии. Основные классы неорганических соединений","max":6},{"task_num":8,"tema":"Основы неорганической химии. Неметаллы и их соединения","max":4},{"task_num":9,"tema":"Основы неорганической химии. Металлы и их соединения","max":4},{"task_num":10,"tema":"Основы органической химии","max":10}],"fg":[{"task_num":11,"tema":"Читательская грамотность","max":6},{"task_num":12,"tema":"Естественно- научная грамотность","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":4},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":3},{"task_num":19,"tema":"Научные основы педагогических технологий","max":3},{"task_num":20,"tema":"Проверка ответов учащихся","max":2}]},"Информатика (паскаль, СИ)":{"predmet":[{"task_num":1,"tema":"Теоретические основы информатики","max":4},{"task_num":2,"tema":"Теоретические основы информатики","max":4},{"task_num":3,"tema":"Графы и деревья","max":6},{"task_num":4,"tema":"Цифровая грамотность","max":4},{"task_num":5,"tema":"Алгоритмы и программиров ание","max":6},{"task_num":6,"tema":"Алгоритмы и программиров ание","max":6},{"task_num":7,"tema":"Алгоритмы и программиров ание","max":6},{"task_num":8,"tema":"Информацион ные технологии","max":4},{"task_num":9,"tema":"Информацион ные технологии","max":6},{"task_num":10,"tema":"Цифровая грамотность","max":4}],"fg":[{"task_num":11,"tema":"Читательская грамотность (Фейки и факты)","max":6},{"task_num":12,"tema":"Математическ ая грамотность (Конкурс и распределение )","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":4},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":3},{"task_num":19,"tema":"Научные основы педагогических технологий","max":3},{"task_num":20,"tema":"Проверка ответов учащихся","max":2}]},"История":{"predmet":[{"task_num":1,"tema":"История как наука","max":6},{"task_num":2,"tema":"Счет лет в истории","max":2},{"task_num":3,"tema":null,"max":8},{"task_num":4,"tema":"История Средних веков. От Руси к Российскому государству. Культура Древней Руси","max":2},{"task_num":5,"tema":"Всеобщая история. История нового времени. Конец XV — XVII вв. История России. Россия в XVI—XVII вв.: от великого княжества к царству","max":6},{"task_num":6,"tema":"Всеобщая история. История Средних веков. История России. От Руси к Российскому государству","max":6},{"task_num":7,"tema":"Всеобщая история. История нового времени. XVIII в. История России. Россия в конце XVII— XVIII вв.: от царства к империи XIX — начало ХХ в. История России. Российская империя в XIX — начале ХХ в.","max":6},{"task_num":8,"tema":"Всеобщая история. История нового времени. XVIII в. История России. Россия в конце XVII— XVIII вв.: от царства к империи XIX — начало ХХ в. История России. Российская империя в XIX — начале ХХ в.","max":4},{"task_num":9,"tema":"Новейшая история. Введение в новейшую историю России. История СССР","max":4},{"task_num":10,"tema":"Новейшая история. Введение в новейшую историю России","max":4}],"fg":[{"task_num":11,"tema":"Читательская грамотность","max":6},{"task_num":12,"tema":"Читательская грамотность","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":4},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":3},{"task_num":19,"tema":"Научные основы педагогических технологий","max":3},{"task_num":20,"tema":"Проверка ответов учащихся","max":2}]},"Технология":{"predmet":[{"task_num":1,"tema":"Производство и технологии","max":4},{"task_num":2,"tema":"Производство и технологии. Проектная деятельность","max":6},{"task_num":3,"tema":"Модуль «Технологии обработки материалов и пищевых продуктов»","max":4},{"task_num":4,"tema":"Технологии обработки конструкционных материалов","max":4},{"task_num":5,"tema":"Технологии обработки текстильных материалов","max":4},{"task_num":6,"tema":"Технология обработки пищевых продуктов","max":4},{"task_num":7,"tema":"«3D-моделирование, прототипирование, макетирование»","max":6},{"task_num":8,"tema":"Робототехника","max":6},{"task_num":9,"tema":"Робототехника. БПЛА","max":6},{"task_num":10,"tema":"Компьютерная графика. Черчение","max":6}],"fg":[{"task_num":11,"tema":"Читательская грамотность","max":6},{"task_num":12,"tema":"Математическая грамотность","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":4},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":3},{"task_num":19,"tema":"Научные основы педагогических технологий","max":3},{"task_num":20,"tema":"Проверка ответов учащихся","max":2}]},"Изобразительное искусство":{"predmet":[{"task_num":1,"tema":"Основы изобразительной грамоты","max":6},{"task_num":2,"tema":"Средства выразительности","max":6},{"task_num":3,"tema":"Замысел художника","max":4},{"task_num":4,"tema":"Виды и жанры изобразительного искусства","max":4},{"task_num":5,"tema":"Народное художественное творчество","max":6},{"task_num":6,"tema":"История отечественной живописи","max":6},{"task_num":7,"tema":"История зарубежного искусства","max":6},{"task_num":8,"tema":"Конструктивное искусство","max":6},{"task_num":9,"tema":"Полиграфия","max":2},{"task_num":10,"tema":"Изображение в синтетических видах искусства","max":4}],"fg":[{"task_num":11,"tema":"Читательская грамотность","max":6},{"task_num":12,"tema":"Читательская грамотность","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":4},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":3},{"task_num":19,"tema":"Научные основы педагогических технологий","max":3},{"task_num":20,"tema":"Проверка ответов учащихся","max":2}]},"Музыка":{"predmet":[{"task_num":1,"tema":"Музыкальная грамота. Свойства звука","max":4},{"task_num":2,"tema":"Музыкальная грамота. Музыкальные инструменты Музыка как вид искусства. Музыкально- сценические жанры","max":4},{"task_num":3,"tema":null,"max":4},{"task_num":4,"tema":"Музыкальная грамота. Оркестровая музыка","max":4},{"task_num":5,"tema":"Музыка и жизнь. Русское народное творчество","max":6},{"task_num":6,"tema":"Сольфеджио. Основы музыкальной грамотности","max":4},{"task_num":7,"tema":"Музыка и жизнь. Вокальная музыка","max":6},{"task_num":8,"tema":"Музыкальная грамота. Музыкальные формы и жанры","max":6},{"task_num":9,"tema":"История музыкального искусства. История зарубежной музыки","max":6},{"task_num":10,"tema":"История музыкального искусства. История русской музыки","max":6}],"fg":[{"task_num":11,"tema":"Читательская грамотность","max":6},{"task_num":12,"tema":"Читательская грамотность","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":4},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":3},{"task_num":19,"tema":"Научные основы педагогических технологий","max":3},{"task_num":20,"tema":"Проверка ответов учащихся","max":2}]},"Немецкий язык":{"predmet":[{"task_num":1,"tema":"Аудирование. Понимание основного содержания прослушанного текста","max":5},{"task_num":2,"tema":"Аудирование. Понимание основного содержания прослушанного текста","max":4},{"task_num":3,"tema":"Чтение и","max":7},{"task_num":4,"tema":"Чтение и понимание текста. Понимание структурно- смысловых связей в тексте","max":6},{"task_num":5,"tema":"Морфология. Употребление прошедшего времени","max":4},{"task_num":6,"tema":"Морфология. Склонение прилагательных","max":4},{"task_num":7,"tema":"Синтаксис. Сложноподчиненн ые предложения","max":4},{"task_num":8,"tema":"Лексика. Словарный запас","max":5},{"task_num":9,"tema":"Лексика. Лексические трудности","max":5},{"task_num":10,"tema":"Лексика. Лексико- грамматические навыки","max":6}],"fg":[{"task_num":11,"tema":"Читательская грамотность","max":4},{"task_num":12,"tema":"Читательская грамотность","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":4},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":3},{"task_num":19,"tema":"Научные основы педагогических технологий","max":3},{"task_num":20,"tema":"Проверка ответов учащихся","max":2}]},"Воспитатель ДОО":{"predmet":[{"task_num":1,"tema":"Социально- коммуникативно е развитие. Узнавание растений по их существенным признакам","max":4},{"task_num":2,"tema":"Социально- коммуникативно е развитие. Классификация животных","max":4},{"task_num":3,"tema":"Познавательное развитие. Логические суждения","max":4},{"task_num":4,"tema":"Познавательное развитие. Арифметические задачи","max":6},{"task_num":5,"tema":"Речевое развитие. Предложения и слова","max":4},{"task_num":6,"tema":"Речевое развитие. Предложения и слова","max":8},{"task_num":7,"tema":"Художественно- эстетическое развитие","max":6},{"task_num":8,"tema":"Художественно-эстетическое развитие","max":6},{"task_num":9,"tema":"Физическое развитие","max":4},{"task_num":10,"tema":"Физическое развитие","max":4}],"fg":[{"task_num":11,"tema":"Читательская грамотность","max":6},{"task_num":12,"tema":"Читательская грамотность","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: общие положения и целевые ориентиры","max":4},{"task_num":14,"tema":"Цели и задачи проектно- исследовательск ой деятельности","max":4},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Игровые технологии","max":4},{"task_num":18,"tema":"Предметно- пространственна я развивающая среда","max":3},{"task_num":19,"tema":"Оценочные процедуры","max":2},{"task_num":20,"tema":"Занятие- знакомство с новым материалом","max":3}]},"Социальный педагог":{"predmet":[],"fg":[{"task_num":1,"tema":"Читательская грамотность","max":6},{"task_num":2,"tema":"Читательская грамотность","max":9}],"metod":[{"task_num":3,"tema":"Взаимодействие между участниками психолого– педагогического сопровождения","max":2},{"task_num":4,"tema":"Конфликт в психолого- педагогической деятельности","max":4},{"task_num":5,"tema":"Динамика развития группы","max":2},{"task_num":6,"tema":"Виды психолого- педагогической деятельности","max":4},{"task_num":7,"tema":"Технологии коррекционно- развивающей работы","max":3},{"task_num":8,"tema":"Психолого- педагогическая диагностика Методы коррекционно- развивающей работы","max":5},{"task_num":9,"tema":"Методы коррекционно-развивающей работы","max":2},{"task_num":10,"tema":"Оценочные процедуры","max":3}]},"Педагог-психолог":{"predmet":[],"fg":[{"task_num":1,"tema":"Читательская грамотность","max":6},{"task_num":2,"tema":"Естественно- научная грамотность","max":9}],"metod":[{"task_num":3,"tema":"Взаимодействие между участниками психолого–педагогического сопровождения","max":2},{"task_num":4,"tema":"Конфликт в психолого- педагогической деятельности","max":4},{"task_num":5,"tema":"Динамика развития коллектива","max":2},{"task_num":6,"tema":"Виды психолого- педагогической деятельности","max":4},{"task_num":7,"tema":"Технологии коррекционно- развивающей работы","max":3},{"task_num":8,"tema":"Психолого-педагогическая диагностика","max":5},{"task_num":9,"tema":"Методы коррекционно-развивающей работы","max":2},{"task_num":10,"tema":"Оценочные процедуры","max":3}]},"Инструктор-методист ДЮСШ (тренер-преподаватель)":{"predmet":[{"task_num":1,"tema":"Способы самостоятельной физической деятельности. Развитие физических качеств","max":4},{"task_num":2,"tema":"Спортивно- оздоровительная деятельность. Правила командных игр","max":4},{"task_num":3,"tema":"Знание о физической культуре. Оказание первой помощи","max":4}],"fg":[{"task_num":4,"tema":"Читательская грамотность","max":6},{"task_num":5,"tema":"Естественно- научная грамотность","max":9}],"metod":[{"task_num":6,"tema":"Нормативно- правовое обеспечение дополнительного образования детей","max":6},{"task_num":7,"tema":"Профессиональные стандарты педагогов дополнительного образования","max":2},{"task_num":8,"tema":"Организация дополнительного образования. Программы дополнительного образования","max":4},{"task_num":9,"tema":"Организация дополнительного образования. Программы дополнительного образования","max":4},{"task_num":10,"tema":"Формы организации дополнительного образования детей","max":1},{"task_num":11,"tema":"Формы и методы обучения","max":4},{"task_num":12,"tema":"Взаимодействие участников дополнительного образования","max":4}]},"Музыкальный руководитель ДОО":{"predmet":[{"task_num":1,"tema":"Свойства музыкального звука","max":2},{"task_num":2,"tema":"Музыкальные инструменты","max":4},{"task_num":3,"tema":"Музыкально- сценические жанры","max":2}],"fg":[{"task_num":4,"tema":"Читательская грамотность","max":6},{"task_num":5,"tema":"Читательская грамотность","max":9}],"metod":[{"task_num":6,"tema":"ФГОС: общие положения и целевые ориентиры","max":4},{"task_num":7,"tema":"ФГОС: требования к результатам освоения ФОП ДОО","max":2},{"task_num":8,"tema":"Образовательная и исследовательск ая деятельность в ДОО","max":4},{"task_num":9,"tema":"Современные педагогические технологии","max":3},{"task_num":10,"tema":"Формы и методы обучения","max":4},{"task_num":11,"tema":"Игровые технологии","max":4},{"task_num":12,"tema":"Основы воспитательной деятельности","max":2},{"task_num":13,"tema":"Управление учебной группой","max":2}]},"Педагог-организатор":{"predmet":[],"fg":[{"task_num":1,"tema":"Читательская грамотность","max":6},{"task_num":2,"tema":"Читательская грамотность","max":9}],"metod":[{"task_num":3,"tema":"Взаимодействие между участниками психолого– педагогического сопровождения","max":2},{"task_num":4,"tema":"Конфликт в психолого- педагогической деятельности","max":4},{"task_num":5,"tema":"Динамика развития группы","max":2},{"task_num":6,"tema":"Виды психолого- педагогической деятельности","max":4},{"task_num":7,"tema":"Технологии коррекционно- развивающей работы","max":3},{"task_num":8,"tema":"Психолого- педагогическая диагностика Методы коррекционно- развивающей работы","max":5},{"task_num":9,"tema":"Методы коррекционно-развивающей работы","max":2},{"task_num":10,"tema":"Оценочные процедуры","max":3}]},"ОБЗР":{"predmet":[{"task_num":1,"tema":"Безопасное и устойчивое развитие личности, общества, государства","max":4},{"task_num":2,"tema":"Основы военной подготовки","max":8},{"task_num":3,"tema":"Культура безопасности","max":4},{"task_num":4,"tema":"Безопасность в быту","max":4},{"task_num":5,"tema":"Безопасность на транспорте","max":4},{"task_num":6,"tema":"Безопасность в общественных местах, в социуме","max":8},{"task_num":7,"tema":"Безопасность в природной среде","max":4},{"task_num":8,"tema":"Основы медицинских знаний. Оказание первой помощи","max":4},{"task_num":9,"tema":"Безопасность в информационном пространстве","max":6},{"task_num":10,"tema":"Противодействие экстремизму и терроризму","max":4}],"fg":[{"task_num":11,"tema":"Читательская грамотность","max":6},{"task_num":12,"tema":"Естественно- научная грамотность","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":4},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":3},{"task_num":19,"tema":"Научные основы педагогических технологий","max":3},{"task_num":20,"tema":"Проверка ответов учащихся","max":2}]},"Учитель-дефектолог":{"predmet":[],"fg":[{"task_num":1,"tema":"Читательская грамотность","max":6},{"task_num":2,"tema":"Естественно- научная грамотность","max":9}],"metod":[{"task_num":3,"tema":"Взаимодействие между участниками психолого– педагогического сопровождения","max":2},{"task_num":4,"tema":"Конфликт в психолого-педагогической деятельности","max":4},{"task_num":5,"tema":"Динамика развития коллектива","max":2},{"task_num":6,"tema":"Виды психолого- педагогической деятельности","max":4},{"task_num":7,"tema":"Технологии коррекционно- развивающей работы","max":3},{"task_num":8,"tema":"Психолого-педагогическая диагностика","max":5},{"task_num":9,"tema":"Методы коррекционно-развивающей работы","max":2},{"task_num":10,"tema":"Оценочные процедуры","max":3}]}}</script>
-<script type="application/json" id="riku-specs-data-2026">{"Английский язык":{"predmet":[{"task_num":1,"tema":"Аудирование. Диалогическая речь","max":4},{"task_num":2,"tema":"Аудирование. Понимание основного содержания прослушанного текста","max":4},{"task_num":3,"tema":"Аудирование. Понимание в прослушанном тексте","max":4},{"task_num":4,"tema":"Чтение и понимание текста. Понимание основного содержания текста","max":4},{"task_num":5,"tema":"Чтение и понимание текста. Понимание структурно- смысловых связей в тексте","max":4},{"task_num":6,"tema":"Морфология. Глаголы","max":4},{"task_num":7,"tema":"Морфология других частей речи","max":4},{"task_num":8,"tema":"Синтаксис","max":6},{"task_num":9,"tema":"Лексика. Словарный запас","max":6},{"task_num":10,"tema":"Лексика. Лексико- грамматические навыки","max":10}],"fg":[{"task_num":11,"tema":"Читательская","max":6},{"task_num":12,"tema":"Читательская грамотность","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":2},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":1},{"task_num":19,"tema":"Проверка ответов учащихся","max":2},{"task_num":20,"tema":"Нормативные документы реализации федеральной рабочей программы воспитания","max":2},{"task_num":21,"tema":"Общая и возрастная психология","max":2},{"task_num":22,"tema":"Педагогическая психология","max":2},{"task_num":23,"tema":"Использование цифровых образовательных ресурсов в образовательной деятельности","max":1}]},"Начальная школа":{"predmet":[{"task_num":1,"tema":"Орфография","max":4},{"task_num":2,"tema":"Фонетика","max":4},{"task_num":3,"tema":"Морфология","max":6},{"task_num":4,"tema":"Литературное чтение","max":6},{"task_num":5,"tema":"Текстовые задачи","max":4},{"task_num":6,"tema":"Пространственные отношения и геометрические фигуры","max":4},{"task_num":7,"tema":"Математическая информация","max":6},{"task_num":8,"tema":"Математическая информация. Логические задачи","max":6},{"task_num":9,"tema":"Человек и природа. Живые организмы","max":4},{"task_num":10,"tema":"Человек и природа. География России","max":6}],"fg":[{"task_num":11,"tema":"Читательская грамотность","max":6},{"task_num":12,"tema":"Естественно-научная грамотность","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":2},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":1},{"task_num":19,"tema":"Проверка ответов учащихся","max":2},{"task_num":20,"tema":"Нормативные документы реализации федеральной рабочей программы воспитания","max":2},{"task_num":21,"tema":"Общая и возрастная психология","max":2},{"task_num":22,"tema":"Педагогическая психология","max":2},{"task_num":23,"tema":"Использование цифровых образовательных ресурсов в образовательной деятельности","max":1}]},"Литература":{"predmet":[{"task_num":1,"tema":"Теория литературы","max":4},{"task_num":2,"tema":"Теория литературы","max":4},{"task_num":3,"tema":"Устное народное творчество. Древнерусская литература","max":4},{"task_num":4,"tema":"Устное народное творчество. Древнерусская литература","max":4},{"task_num":5,"tema":"Российская литература XVIII - XIX веков.","max":4},{"task_num":6,"tema":"Российская литература XVIII - XIX веков. Проза","max":6},{"task_num":7,"tema":"Теория литературы. Российская литература XVIII - XIX веков. Поэзия","max":10},{"task_num":8,"tema":"Российская литература XX века","max":4},{"task_num":9,"tema":"Теория литературы. Российская литература XX века","max":6},{"task_num":10,"tema":"Теория литературы. Зарубежная литература","max":4}],"fg":[{"task_num":11,"tema":"Читательская грамотность","max":6},{"task_num":12,"tema":"Читательская грамотность","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":2},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":1},{"task_num":19,"tema":"Проверка ответов учащихся","max":2},{"task_num":20,"tema":"Нормативные документы реализации федеральной рабочей программы воспитания","max":2},{"task_num":21,"tema":"Общая и возрастная психология","max":2},{"task_num":22,"tema":"Педагогическая психология","max":2},{"task_num":23,"tema":"Использование цифровых образовательных ресурсов в образовательной деятельности","max":1}]},"Обществознание":{"predmet":[{"task_num":1,"tema":"Человек и его социальное окружение","max":4},{"task_num":2,"tema":"Общество, в котором мы живем. Человек в современном изменяющемся мире","max":6},{"task_num":3,"tema":"Человек в экономических отношениях","max":8},{"task_num":4,"tema":"Человек в экономических отношениях","max":4},{"task_num":5,"tema":"Человек в политическом измерении","max":4},{"task_num":6,"tema":"Гражданин и государство","max":4},{"task_num":7,"tema":"Человек как участник правовых отношений. Основы российского права","max":4},{"task_num":8,"tema":"Гражданин и государство","max":2},{"task_num":9,"tema":"Человек в системе социальных отношений. Социальные ценности и нормы","max":8},{"task_num":10,"tema":"Человек в системе социальных отношений. Социальные ценности и нормы","max":6}],"fg":[{"task_num":11,"tema":"Читательская грамотность (Родительский чат)","max":6},{"task_num":12,"tema":"Читательская грамотность (Столкновение цивилизаций)","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":2},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":1},{"task_num":19,"tema":"Проверка ответов учащихся","max":2},{"task_num":20,"tema":"Нормативные документы реализации федеральной рабочей программы воспитания","max":2},{"task_num":21,"tema":"Общая и возрастная психология","max":2},{"task_num":22,"tema":"Педагогическая психология","max":2},{"task_num":23,"tema":"Использование цифровых образовательных ресурсов в образовательной деятельности","max":1}]},"Физика":{"predmet":[{"task_num":1,"tema":"Механика. Кинематика","max":4},{"task_num":2,"tema":"Механика. Динамика","max":4},{"task_num":3,"tema":"Механика. Законы сохранения","max":6},{"task_num":4,"tema":"Термодинамика. Молекулярно- кинетическая теория","max":4},{"task_num":5,"tema":"Термодинамика. Термодинамические процессы","max":6},{"task_num":6,"tema":"Электродинамика. Расчет электрических цепей","max":2},{"task_num":7,"tema":"Электродинамика. Электромагнитны е явления","max":8},{"task_num":8,"tema":"Оптика. Оптические явления","max":6},{"task_num":9,"tema":"Квантовая, атомная и ядерная физика. Квантовые явления","max":6},{"task_num":10,"tema":"Электростатика","max":4}],"fg":[{"task_num":11,"tema":"Читательская грамотность","max":6},{"task_num":12,"tema":"Естественно- научная грамотность","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":2},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":1},{"task_num":19,"tema":"Проверка ответов учащихся","max":2},{"task_num":20,"tema":"Нормативные документы реализации федеральной рабочей программы воспитания","max":2},{"task_num":21,"tema":"Общая и возрастная психология","max":2},{"task_num":22,"tema":"Педагогическая психология","max":2},{"task_num":23,"tema":"Использование цифровых образовательных ресурсов в образовательной деятельности","max":1}]},"Русский язык":{"predmet":[{"task_num":1,"tema":"Фонетика и графика. Лексика и фразеология","max":6},{"task_num":2,"tema":"Фонетика и графика. Орфоэпия","max":4},{"task_num":3,"tema":"Лексика и фразеология","max":4},{"task_num":4,"tema":"Морфемика и словообразование","max":2},{"task_num":5,"tema":"Морфология и орфография","max":4},{"task_num":6,"tema":"Синтаксис и пунктуация","max":6},{"task_num":7,"tema":"Синтаксис и пунктуация","max":6},{"task_num":8,"tema":"Синтаксис и пунктуация","max":6},{"task_num":9,"tema":"Лексика и фразеология","max":8},{"task_num":10,"tema":"Речь и речевое общение","max":4}],"fg":[{"task_num":11,"tema":"Читательская грамотность","max":6},{"task_num":12,"tema":"Читательская грамотность","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":2},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":1},{"task_num":19,"tema":"Проверка ответов учащихся","max":2},{"task_num":20,"tema":"Нормативные документы реализации федеральной рабочей программы воспитания","max":2},{"task_num":21,"tema":"Общая и возрастная психология","max":2},{"task_num":22,"tema":"Педагогическая психология","max":2},{"task_num":23,"tema":"Использование цифровых образовательных ресурсов в образовательной деятельности","max":1}]},"Математика":{"predmet":[{"task_num":1,"tema":"Числа и вычисления","max":4},{"task_num":2,"tema":"Уравнения и неравенства","max":4},{"task_num":3,"tema":"Уравнения и неравенства.","max":6},{"task_num":4,"tema":"Уравнения и неравенства. Система уравнений","max":6},{"task_num":5,"tema":"Начала математического анализа. Последовательност и","max":4},{"task_num":6,"tema":"Начала математического анализа. Производная","max":6},{"task_num":7,"tema":"Геометрия. Координаты и векторы","max":6},{"task_num":8,"tema":"Геометрия. Планиметрия","max":4},{"task_num":9,"tema":"Геометрия. Стереометрия","max":6},{"task_num":10,"tema":"Вероятность и статистика","max":4}],"fg":[{"task_num":11,"tema":"Читательская грамотность (Родительский чат)","max":6},{"task_num":12,"tema":"Математическая грамотность (Конкурс и распределение)","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":2},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":1},{"task_num":19,"tema":"Проверка ответов учащихся","max":2},{"task_num":20,"tema":"Нормативные документы реализации федеральной рабочей программы воспитания","max":2},{"task_num":21,"tema":"Общая и возрастная психология","max":2},{"task_num":22,"tema":"Педагогическая психология","max":2},{"task_num":23,"tema":"Использование цифровых образовательных ресурсов в образовательной деятельности","max":1}]},"География":{"predmet":[{"task_num":1,"tema":"Географическое изучение Земли. Изображение земной поверхности. География в современном мире","max":2},{"task_num":2,"tema":"География России. Место России в современном мире","max":4},{"task_num":3,"tema":"Географическое изучение Земли. Изображение земной поверхности. География в современном мире","max":6},{"task_num":4,"tema":"География как сфера","max":4},{"task_num":5,"tema":"Человечество на Земле. Материки и страны. Население мира","max":8},{"task_num":6,"tema":"География России. Место России в современном мире","max":6},{"task_num":7,"tema":"Мировое хозяйство","max":4},{"task_num":8,"tema":"Регионы и страны мира","max":4},{"task_num":9,"tema":"Мировое хозяйство","max":6},{"task_num":10,"tema":"Глобальные проблемы человечества","max":6}],"fg":[{"task_num":11,"tema":"Читательская грамотность","max":6},{"task_num":12,"tema":"Естественно- научная грамотность","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":2},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":1},{"task_num":19,"tema":"Проверка ответов учащихся","max":2},{"task_num":20,"tema":"Нормативные документы реализации федеральной рабочей программы воспитания","max":2},{"task_num":21,"tema":"Общая и возрастная психология","max":2},{"task_num":22,"tema":"Педагогическая психология","max":2},{"task_num":23,"tema":"Использование цифровых образовательных ресурсов в образовательной деятельности","max":1}]},"Физическая культура":{"predmet":[{"task_num":1,"tema":"Физкультурно- оздоровительная деятельность. Физические упражнения на различные группы мышцы","max":8},{"task_num":2,"tema":"Способы самостоятельной физической деятельности. Развитие физических качеств","max":6},{"task_num":3,"tema":"Знание и физической культуре. Оказание первой помощи","max":8},{"task_num":4,"tema":"Физкультурно- оздоровительная деятельность. Терминология физических упражнений","max":2},{"task_num":5,"tema":"Физкультурно- оздоровительная деятельность. Программы ЛФК","max":6},{"task_num":6,"tema":"Спортивно- оздоровительная деятельность. Правила командных игр","max":4},{"task_num":7,"tema":"Спортивно- оздоровительная деятельность. Классификация видов спорта или техник исполнения","max":6},{"task_num":8,"tema":"Знания о физической культуре. Спортивно- оздоровительная деятельность. Бег","max":4},{"task_num":9,"tema":"Знания о физической культуре. Олимпийское движение","max":2},{"task_num":10,"tema":"Знания о физической культуре. Значимые победы российского спорта","max":4}],"fg":[{"task_num":11,"tema":"Читательская грамотность","max":6},{"task_num":12,"tema":"Естественно-научная грамотность","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":2},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":1},{"task_num":19,"tema":"Проверка ответов учащихся","max":2},{"task_num":20,"tema":"Нормативные документы реализации федеральной рабочей программы воспитания","max":2},{"task_num":21,"tema":"Общая и возрастная психология","max":2},{"task_num":22,"tema":"Педагогическая психология","max":2},{"task_num":23,"tema":"Использование цифровых образовательных ресурсов в образовательной деятельности","max":1}]},"Биология":{"predmet":[{"task_num":1,"tema":"Клетка как биологическая система","max":2},{"task_num":2,"tema":"Система и многообразие органического мира","max":4},{"task_num":3,"tema":"Система и многообразие органического мира","max":4},{"task_num":4,"tema":"Организм человека и его здоровье","max":4},{"task_num":5,"tema":"Клетка как биологическая система","max":4},{"task_num":6,"tema":"Экосистемы и присущие им закономерност и","max":4},{"task_num":7,"tema":"Теория эволюции. Развитие жизни на Земле","max":6},{"task_num":8,"tema":"Организм как биологическая система","max":6},{"task_num":9,"tema":"Организм как биологическая система","max":8},{"task_num":10,"tema":"Организм как биологическая система","max":8}],"fg":[{"task_num":11,"tema":"Читательская грамотность","max":6},{"task_num":12,"tema":"Естественно- научная грамотность","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":2},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":1},{"task_num":19,"tema":"Проверка ответов учащихся","max":2},{"task_num":20,"tema":"Нормативные документы реализации федеральной рабочей программы воспитания","max":2},{"task_num":21,"tema":"Общая и возрастная психология","max":2},{"task_num":22,"tema":"Педагогическая психология","max":2},{"task_num":23,"tema":"Использование цифровых образовательных ресурсов в образовательной деятельности","max":1}]},"ОБЖ":{"predmet":[{"task_num":1,"tema":"Безопасное и устойчивое развитие личности, общества, государства","max":4},{"task_num":2,"tema":"Основы военной подготовки","max":8},{"task_num":3,"tema":"Культура безопасности","max":4},{"task_num":4,"tema":"Безопасность в быту","max":4},{"task_num":5,"tema":"Безопасность на транспорте","max":4},{"task_num":6,"tema":"Безопасность в общественных местах, в социуме","max":8},{"task_num":7,"tema":"Безопасность в природной среде","max":4},{"task_num":8,"tema":"Основы медицинских знаний. Оказание первой помощи","max":4},{"task_num":9,"tema":"Безопасность в информационном пространстве","max":6},{"task_num":10,"tema":"Противодействие экстремизму и терроризму","max":4}],"fg":[{"task_num":11,"tema":"Читательская грамотность","max":6},{"task_num":12,"tema":"Естественно- научная грамотность","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":2},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":1},{"task_num":19,"tema":"Проверка ответов учащихся","max":2},{"task_num":20,"tema":"Нормативные документы реализации федеральной рабочей программы воспитания","max":2},{"task_num":21,"tema":"Общая и возрастная психология","max":2},{"task_num":22,"tema":"Педагогическая психология","max":2},{"task_num":23,"tema":"Использование цифровых образовательных ресурсов в образовательной деятельности","max":1}]},"Химия":{"predmet":[{"task_num":1,"tema":"Теоретические основы химии. Эксперимент в химии","max":4},{"task_num":2,"tema":"Типы расчетных задач. Количественные соотношения в химии","max":6},{"task_num":3,"tema":"Теоретические основы химии. Строение атома, Периодическая система Д.И. Менделеева","max":2},{"task_num":4,"tema":"Теоретические основы химии. Химическая связь","max":4},{"task_num":5,"tema":"Теоретические основы химии. Химические реакции","max":6},{"task_num":6,"tema":"Теоретические основы химии. Дисперсные системы. Растворы","max":4},{"task_num":7,"tema":"Основы неорганической химии. Основные классы неорганических соединений","max":6},{"task_num":8,"tema":"Основы неорганической химии. Неметаллы и их соединения","max":4},{"task_num":9,"tema":"Основы неорганической химии. Металлы и их соединения","max":4},{"task_num":10,"tema":"Основы органической химии","max":10}],"fg":[{"task_num":11,"tema":"Читательская грамотность","max":6},{"task_num":12,"tema":"Естественно- научная грамотность","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":2},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":1},{"task_num":19,"tema":"Проверка ответов учащихся","max":2},{"task_num":20,"tema":"Нормативные документы реализации федеральной рабочей программы воспитания","max":2},{"task_num":21,"tema":"Общая и возрастная психология","max":2},{"task_num":22,"tema":"Педагогическая психология","max":2},{"task_num":23,"tema":"Использование цифровых образовательных ресурсов в образовательной деятельности","max":1}]},"Информатика (паскаль, СИ)":{"predmet":[{"task_num":1,"tema":"Теоретические основы информатики","max":4},{"task_num":2,"tema":"Теоретические основы информатики","max":4},{"task_num":3,"tema":"Графы и деревья","max":6},{"task_num":4,"tema":"Цифровая грамотность","max":4},{"task_num":5,"tema":"Алгоритмы и программиров ание","max":6},{"task_num":6,"tema":"Алгоритмы и программиров ание","max":6},{"task_num":7,"tema":"Алгоритмы и программиров ание","max":6},{"task_num":8,"tema":"Информацион ные технологии","max":4},{"task_num":9,"tema":"Информацион ные технологии","max":6},{"task_num":10,"tema":"Цифровая грамотность","max":4}],"fg":[{"task_num":11,"tema":"Читательская грамотность (Фейки и факты)","max":6},{"task_num":12,"tema":"Математическ ая грамотность (Конкурс и распределение )","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":2},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":1},{"task_num":19,"tema":"Проверка ответов учащихся","max":2},{"task_num":20,"tema":"Нормативные документы реализации федеральной рабочей программы воспитания","max":2},{"task_num":21,"tema":"Общая и возрастная психология","max":2},{"task_num":22,"tema":"Педагогическая психология","max":2},{"task_num":23,"tema":"Использование цифровых образовательных ресурсов в образовательной деятельности","max":1}]},"История":{"predmet":[{"task_num":1,"tema":"История как наука","max":6},{"task_num":2,"tema":"Счет лет в истории","max":2},{"task_num":3,"tema":"История Древнего мира","max":10},{"task_num":4,"tema":"История Средних веков. От Руси к Российскому государству. Культура Древней Руси","max":2},{"task_num":5,"tema":"События и явления XVII века","max":6},{"task_num":6,"tema":"Определение терминов","max":6},{"task_num":7,"tema":"Анализ визуальных источников","max":6},{"task_num":8,"tema":"История Нового времени","max":4},{"task_num":9,"tema":"История СССР","max":4},{"task_num":10,"tema":"События российской и мировой новейшей истории","max":4}],"fg":[{"task_num":11,"tema":"Читательская грамотность","max":6},{"task_num":12,"tema":"Читательская грамотность","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":2},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":1},{"task_num":19,"tema":"Проверка ответов учащихся","max":2},{"task_num":20,"tema":"Нормативные документы реализации федеральной рабочей программы воспитания","max":2},{"task_num":21,"tema":"Общая и возрастная психология","max":2},{"task_num":22,"tema":"Педагогическая психология","max":2},{"task_num":23,"tema":"Использование цифровых образовательных ресурсов в образовательной деятельности","max":1}]},"Технология":{"predmet":[{"task_num":1,"tema":"Производство и технологии","max":4},{"task_num":2,"tema":"Производство и технологии. Проектная деятельность","max":6},{"task_num":3,"tema":"Модуль «Технологии обработки материалов и пищевых продуктов»","max":4},{"task_num":4,"tema":"Технологии обработки конструкционных материалов","max":4},{"task_num":5,"tema":"Технологии обработки текстильных материалов","max":4},{"task_num":6,"tema":"Технология обработки пищевых продуктов","max":4},{"task_num":7,"tema":"«3D-моделирование, прототипирование, макетирование»","max":6},{"task_num":8,"tema":"Робототехника","max":6},{"task_num":9,"tema":"Робототехника. БПЛА","max":6},{"task_num":10,"tema":"Компьютерная графика. Черчение","max":6}],"fg":[{"task_num":11,"tema":"Читательская грамотность","max":6},{"task_num":12,"tema":"Математическая грамотность","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":2},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":1},{"task_num":19,"tema":"Проверка ответов учащихся","max":2},{"task_num":20,"tema":"Нормативные документы реализации федеральной рабочей программы воспитания","max":2},{"task_num":21,"tema":"Общая и возрастная психология","max":2},{"task_num":22,"tema":"Педагогическая психология","max":2},{"task_num":23,"tema":"Использование цифровых образовательных ресурсов в образовательной деятельности","max":1}]},"Изобразительное искусство":{"predmet":[{"task_num":1,"tema":"Основы изобразительной грамоты","max":6},{"task_num":2,"tema":"Средства выразительности","max":6},{"task_num":3,"tema":"Замысел художника","max":4},{"task_num":4,"tema":"Виды и жанры изобразительного искусства","max":4},{"task_num":5,"tema":"Народное художественное творчество","max":6},{"task_num":6,"tema":"История отечественной живописи","max":6},{"task_num":7,"tema":"История зарубежного искусства","max":6},{"task_num":8,"tema":"Конструктивное искусство","max":6},{"task_num":9,"tema":"Полиграфия","max":2},{"task_num":10,"tema":"Изображение в синтетических видах искусства","max":4}],"fg":[{"task_num":11,"tema":"Читательская грамотность","max":6},{"task_num":12,"tema":"Читательская грамотность","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":2},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":1},{"task_num":19,"tema":"Проверка ответов учащихся","max":2},{"task_num":20,"tema":"Нормативные документы реализации федеральной рабочей программы воспитания","max":2},{"task_num":21,"tema":"Общая и возрастная психология","max":2},{"task_num":22,"tema":"Педагогическая психология","max":2},{"task_num":23,"tema":"Использование цифровых образовательных ресурсов в образовательной деятельности","max":1}]},"Музыка":{"predmet":[{"task_num":1,"tema":"Музыкальная грамота. Свойства звука","max":4},{"task_num":2,"tema":"Музыкальная грамота. Музыкальные инструменты Музыка как вид искусства. Музыкально- сценические жанры","max":4},{"task_num":3,"tema":null,"max":4},{"task_num":4,"tema":"Музыкальная грамота. Оркестровая музыка","max":4},{"task_num":5,"tema":"Музыка и жизнь. Русское народное творчество","max":6},{"task_num":6,"tema":"Сольфеджио. Основы музыкальной грамотности","max":4},{"task_num":7,"tema":"Музыка и жизнь. Вокальная музыка","max":6},{"task_num":8,"tema":"Музыкальная грамота. Музыкальные формы и жанры","max":6},{"task_num":9,"tema":"История музыкального искусства. История зарубежной музыки","max":6},{"task_num":10,"tema":"История музыкального искусства. История русской музыки","max":6}],"fg":[{"task_num":11,"tema":"Читательская грамотность","max":6},{"task_num":12,"tema":"Читательская грамотность","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":2},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":1},{"task_num":19,"tema":"Проверка ответов учащихся","max":2},{"task_num":20,"tema":"Нормативные документы реализации федеральной рабочей программы воспитания","max":2},{"task_num":21,"tema":"Общая и возрастная психология","max":2},{"task_num":22,"tema":"Педагогическая психология","max":2},{"task_num":23,"tema":"Использование цифровых образовательных ресурсов в образовательной деятельности","max":1}]},"Немецкий язык":{"predmet":[{"task_num":1,"tema":"Аудирование. Понимание основного содержания прослушанного текста","max":4},{"task_num":2,"tema":"Аудирование. Понимание основного содержания прослушанного текста","max":4},{"task_num":3,"tema":"Чтение и","max":8},{"task_num":4,"tema":"Чтение и понимание текста. Понимание структурно- смысловых связей в тексте","max":6},{"task_num":5,"tema":"Морфология. Употребление прошедшего времени","max":4},{"task_num":6,"tema":"Морфология. Склонение прилагательных","max":4},{"task_num":7,"tema":"Синтаксис. Сложноподчиненн ые предложения","max":4},{"task_num":8,"tema":"Лексика. Словарный запас","max":4},{"task_num":9,"tema":"Лексика. Лексические трудности","max":4},{"task_num":10,"tema":"Лексика. Лексико- грамматические навыки","max":8}],"fg":[{"task_num":11,"tema":"Читательская грамотность","max":4},{"task_num":12,"tema":"Читательская грамотность","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":2},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":1},{"task_num":19,"tema":"Проверка ответов учащихся","max":2},{"task_num":20,"tema":"Нормативные документы реализации федеральной рабочей программы воспитания","max":2},{"task_num":21,"tema":"Общая и возрастная психология","max":2},{"task_num":22,"tema":"Педагогическая психология","max":2},{"task_num":23,"tema":"Использование цифровых образовательных ресурсов в образовательной деятельности","max":1}]},"Воспитатель ДОО":{"predmet":[{"task_num":1,"tema":"Социально- коммуникативно е развитие. Узнавание растений по их существенным признакам","max":4},{"task_num":2,"tema":"Социально- коммуникативно е развитие. Классификация животных","max":4},{"task_num":3,"tema":"Познавательное развитие. Логические суждения","max":4},{"task_num":4,"tema":"Познавательное развитие. Арифметические задачи","max":6},{"task_num":5,"tema":"Речевое развитие. Предложения и слова","max":4},{"task_num":6,"tema":"Речевое развитие. Предложения и слова","max":8},{"task_num":7,"tema":"Художественно- эстетическое развитие","max":6},{"task_num":8,"tema":"Художественно-эстетическое развитие","max":6},{"task_num":9,"tema":"Физическое развитие","max":4},{"task_num":10,"tema":"Физическое развитие","max":4}],"fg":[{"task_num":11,"tema":"Читательская грамотность","max":6},{"task_num":12,"tema":"Читательская грамотность","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: общие положения и целевые ориентиры","max":4},{"task_num":14,"tema":"Цели и задачи проектно- исследовательск ой деятельности","max":4},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Игровые технологии","max":4},{"task_num":18,"tema":"Предметно- пространственна я развивающая среда","max":3},{"task_num":19,"tema":"Оценочные процедуры","max":2},{"task_num":20,"tema":"Занятие- знакомство с новым материалом","max":3}]},"Социальный педагог":{"predmet":[],"fg":[{"task_num":1,"tema":"Читательская грамотность","max":6},{"task_num":2,"tema":"Читательская грамотность","max":9}],"metod":[{"task_num":3,"tema":"Взаимодействие между участниками психолого– педагогического сопровождения","max":2},{"task_num":4,"tema":"Конфликт в психолого- педагогической деятельности","max":4},{"task_num":5,"tema":"Динамика развития группы","max":2},{"task_num":6,"tema":"Виды психолого- педагогической деятельности","max":4},{"task_num":7,"tema":"Технологии коррекционно- развивающей работы","max":3},{"task_num":8,"tema":"Психолого- педагогическая диагностика Методы коррекционно- развивающей работы","max":5},{"task_num":9,"tema":"Методы коррекционно-развивающей работы","max":2},{"task_num":10,"tema":"Оценочные процедуры","max":3}]},"Педагог-психолог":{"predmet":[],"fg":[{"task_num":1,"tema":"Читательская грамотность","max":6},{"task_num":2,"tema":"Естественно- научная грамотность","max":9}],"metod":[{"task_num":3,"tema":"Взаимодействие между участниками психолого–педагогического сопровождения","max":2},{"task_num":4,"tema":"Конфликт в психолого- педагогической деятельности","max":4},{"task_num":5,"tema":"Динамика развития коллектива","max":2},{"task_num":6,"tema":"Виды психолого- педагогической деятельности","max":4},{"task_num":7,"tema":"Технологии коррекционно- развивающей работы","max":3},{"task_num":8,"tema":"Психолого-педагогическая диагностика","max":5},{"task_num":9,"tema":"Методы коррекционно-развивающей работы","max":2},{"task_num":10,"tema":"Оценочные процедуры","max":3}]},"Инструктор-методист ДЮСШ (тренер-преподаватель)":{"predmet":[{"task_num":1,"tema":"Способы самостоятельной физической деятельности. Развитие физических качеств","max":4},{"task_num":2,"tema":"Спортивно- оздоровительная деятельность. Правила командных игр","max":4},{"task_num":3,"tema":"Знание о физической культуре. Оказание первой помощи","max":4}],"fg":[{"task_num":4,"tema":"Читательская грамотность","max":6},{"task_num":5,"tema":"Естественно- научная грамотность","max":9}],"metod":[{"task_num":6,"tema":"Нормативно- правовое обеспечение дополнительного образования детей","max":6},{"task_num":7,"tema":"Профессиональные стандарты педагогов дополнительного образования","max":2},{"task_num":8,"tema":"Организация дополнительного образования. Программы дополнительного образования","max":4},{"task_num":9,"tema":"Организация дополнительного образования. Программы дополнительного образования","max":4},{"task_num":10,"tema":"Формы организации дополнительного образования детей","max":1},{"task_num":11,"tema":"Формы и методы обучения","max":4},{"task_num":12,"tema":"Взаимодействие участников дополнительного образования","max":4}]},"Музыкальный руководитель ДОО":{"predmet":[{"task_num":1,"tema":"Свойства музыкального звука","max":2},{"task_num":2,"tema":"Музыкальные инструменты","max":4},{"task_num":3,"tema":"Музыкально- сценические жанры","max":2}],"fg":[{"task_num":4,"tema":"Читательская грамотность","max":6},{"task_num":5,"tema":"Читательская грамотность","max":9}],"metod":[{"task_num":6,"tema":"ФГОС: общие положения и целевые ориентиры","max":4},{"task_num":7,"tema":"ФГОС: требования к результатам освоения ФОП ДОО","max":2},{"task_num":8,"tema":"Образовательная и исследовательск ая деятельность в ДОО","max":4},{"task_num":9,"tema":"Современные педагогические технологии","max":3},{"task_num":10,"tema":"Формы и методы обучения","max":4},{"task_num":11,"tema":"Игровые технологии","max":4},{"task_num":12,"tema":"Основы воспитательной деятельности","max":2},{"task_num":13,"tema":"Управление учебной группой","max":2}]},"Педагог-организатор":{"predmet":[],"fg":[{"task_num":1,"tema":"Читательская грамотность","max":6},{"task_num":2,"tema":"Читательская грамотность","max":9}],"metod":[{"task_num":3,"tema":"Взаимодействие между участниками психолого– педагогического сопровождения","max":2},{"task_num":4,"tema":"Конфликт в психолого- педагогической деятельности","max":4},{"task_num":5,"tema":"Динамика развития группы","max":2},{"task_num":6,"tema":"Виды психолого- педагогической деятельности","max":4},{"task_num":7,"tema":"Технологии коррекционно- развивающей работы","max":3},{"task_num":8,"tema":"Психолого- педагогическая диагностика Методы коррекционно- развивающей работы","max":5},{"task_num":9,"tema":"Методы коррекционно-развивающей работы","max":2},{"task_num":10,"tema":"Оценочные процедуры","max":3}]},"ОБЗР":{"predmet":[{"task_num":1,"tema":"Безопасное и устойчивое развитие личности, общества, государства","max":4},{"task_num":2,"tema":"Основы военной подготовки","max":8},{"task_num":3,"tema":"Культура безопасности","max":4},{"task_num":4,"tema":"Безопасность в быту","max":4},{"task_num":5,"tema":"Безопасность на транспорте","max":4},{"task_num":6,"tema":"Безопасность в общественных местах, в социуме","max":8},{"task_num":7,"tema":"Безопасность в природной среде","max":4},{"task_num":8,"tema":"Основы медицинских знаний. Оказание первой помощи","max":4},{"task_num":9,"tema":"Безопасность в информационном пространстве","max":6},{"task_num":10,"tema":"Противодействие экстремизму и терроризму","max":4}],"fg":[{"task_num":11,"tema":"Читательская грамотность","max":6},{"task_num":12,"tema":"Естественно- научная грамотность","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":2},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":1},{"task_num":19,"tema":"Проверка ответов учащихся","max":2},{"task_num":20,"tema":"Нормативные документы реализации федеральной рабочей программы воспитания","max":2},{"task_num":21,"tema":"Общая и возрастная психология","max":2},{"task_num":22,"tema":"Педагогическая психология","max":2},{"task_num":23,"tema":"Использование цифровых образовательных ресурсов в образовательной деятельности","max":1}]},"Учитель-дефектолог":{"predmet":[],"fg":[{"task_num":1,"tema":"Читательская грамотность","max":6},{"task_num":2,"tema":"Естественно- научная грамотность","max":9}],"metod":[{"task_num":3,"tema":"Взаимодействие между участниками психолого– педагогического сопровождения","max":2},{"task_num":4,"tema":"Конфликт в психолого-педагогической деятельности","max":4},{"task_num":5,"tema":"Динамика развития коллектива","max":2},{"task_num":6,"tema":"Виды психолого- педагогической деятельности","max":4},{"task_num":7,"tema":"Технологии коррекционно- развивающей работы","max":3},{"task_num":8,"tema":"Психолого-педагогическая диагностика","max":5},{"task_num":9,"tema":"Методы коррекционно-развивающей работы","max":2},{"task_num":10,"tema":"Оценочные процедуры","max":3}]},"Французский язык":{"predmet":[{"task_num":1,"tema":"Аудирование","max":10},{"task_num":2,"tema":"Чтение и понимание текста","max":4},{"task_num":3,"tema":"Синтаксис","max":6},{"task_num":4,"tema":"Чтение и понимание текста","max":6},{"task_num":5,"tema":"Лексика","max":4},{"task_num":6,"tema":"Аудирование","max":4},{"task_num":7,"tema":"Синтаксис","max":4},{"task_num":8,"tema":"Лексика","max":4},{"task_num":9,"tema":"Лексика","max":4},{"task_num":10,"tema":"Лексика","max":4}],"fg":[{"task_num":11,"tema":"Читательская грамотность","max":6},{"task_num":12,"tema":"Читательская грамотность","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":2},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":1},{"task_num":19,"tema":"Проверка ответов учащихся","max":2},{"task_num":20,"tema":"Нормативные документы реализации федеральной рабочей программы воспитания","max":2},{"task_num":21,"tema":"Общая и возрастная психология","max":2},{"task_num":22,"tema":"Педагогическая психология","max":2},{"task_num":23,"tema":"Использование цифровых образовательных ресурсов в образовательной деятельности","max":1}]}}</script>
+<script type="application/json" id="riku-specs-data-2026">{"Английский язык":{"predmet":[{"task_num":1,"tema":"Аудирование. Диалогическая речь","max":4},{"task_num":2,"tema":"Аудирование. Понимание основного содержания прослушанного текста","max":6},{"task_num":3,"tema":"Аудирование. Понимание в прослушанном тексте","max":8},{"task_num":4,"tema":"Чтение и понимание текста. Понимание основного содержания текста","max":6},{"task_num":5,"tema":"Чтение и понимание текста. Понимание структурно- смысловых связей в тексте","max":4},{"task_num":6,"tema":"Морфология. Глаголы","max":2},{"task_num":7,"tema":"Морфология других частей речи","max":3},{"task_num":8,"tema":"Синтаксис","max":6},{"task_num":9,"tema":"Лексика. Словарный запас","max":6},{"task_num":10,"tema":"Лексика. Лексико- грамматические навыки","max":5}],"fg":[{"task_num":11,"tema":"Читательская","max":6},{"task_num":12,"tema":"Читательская грамотность","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":2},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":1},{"task_num":19,"tema":"Проверка ответов учащихся","max":2},{"task_num":20,"tema":"Нормативные документы реализации федеральной рабочей программы воспитания","max":2},{"task_num":21,"tema":"Общая и возрастная психология","max":2},{"task_num":22,"tema":"Педагогическая психология","max":2},{"task_num":23,"tema":"Использование цифровых образовательных ресурсов в образовательной деятельности","max":1}]},"Начальная школа":{"predmet":[{"task_num":1,"tema":"Орфография","max":4},{"task_num":2,"tema":"Фонетика","max":4},{"task_num":3,"tema":"Морфология","max":6},{"task_num":4,"tema":"Литературное чтение","max":6},{"task_num":5,"tema":"Текстовые задачи","max":4},{"task_num":6,"tema":"Пространственные отношения и геометрические фигуры","max":4},{"task_num":7,"tema":"Математическая информация","max":6},{"task_num":8,"tema":"Математическая информация. Логические задачи","max":6},{"task_num":9,"tema":"Человек и природа. Живые организмы","max":4},{"task_num":10,"tema":"Человек и природа. География России","max":6}],"fg":[{"task_num":11,"tema":"Читательская грамотность","max":6},{"task_num":12,"tema":"Естественно-научная грамотность","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":2},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":1},{"task_num":19,"tema":"Проверка ответов учащихся","max":2},{"task_num":20,"tema":"Нормативные документы реализации федеральной рабочей программы воспитания","max":2},{"task_num":21,"tema":"Общая и возрастная психология","max":2},{"task_num":22,"tema":"Педагогическая психология","max":2},{"task_num":23,"tema":"Использование цифровых образовательных ресурсов в образовательной деятельности","max":1}]},"Литература":{"predmet":[{"task_num":1,"tema":"Теория литературы","max":4},{"task_num":2,"tema":"Теория литературы","max":4},{"task_num":3,"tema":"Устное народное творчество. Древнерусская литература","max":4},{"task_num":4,"tema":"Устное народное творчество. Древнерусская литература","max":4},{"task_num":5,"tema":"Российская литература XVIII - XIX веков.","max":4},{"task_num":6,"tema":"Российская литература XVIII - XIX веков. Проза","max":6},{"task_num":7,"tema":"Теория литературы. Российская литература XVIII - XIX веков. Поэзия","max":10},{"task_num":8,"tema":"Российская литература XX века","max":4},{"task_num":9,"tema":"Теория литературы. Российская литература XX века","max":6},{"task_num":10,"tema":"Теория литературы. Зарубежная литература","max":4}],"fg":[{"task_num":11,"tema":"Читательская грамотность","max":6},{"task_num":12,"tema":"Читательская грамотность","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":2},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":1},{"task_num":19,"tema":"Проверка ответов учащихся","max":2},{"task_num":20,"tema":"Нормативные документы реализации федеральной рабочей программы воспитания","max":2},{"task_num":21,"tema":"Общая и возрастная психология","max":2},{"task_num":22,"tema":"Педагогическая психология","max":2},{"task_num":23,"tema":"Использование цифровых образовательных ресурсов в образовательной деятельности","max":1}]},"Обществознание":{"predmet":[{"task_num":1,"tema":"Человек и его социальное окружение","max":4},{"task_num":2,"tema":"Общество, в котором мы живем. Человек в современном изменяющемся мире","max":6},{"task_num":3,"tema":"Человек в экономических отношениях","max":8},{"task_num":4,"tema":"Человек в экономических отношениях","max":4},{"task_num":5,"tema":"Человек в политическом измерении","max":4},{"task_num":6,"tema":"Гражданин и государство","max":4},{"task_num":7,"tema":"Человек как участник правовых отношений. Основы российского права","max":4},{"task_num":8,"tema":"Гражданин и государство","max":2},{"task_num":9,"tema":"Человек в системе социальных отношений. Социальные ценности и нормы","max":8},{"task_num":10,"tema":"Человек в системе социальных отношений. Социальные ценности и нормы","max":6}],"fg":[{"task_num":11,"tema":"Читательская грамотность (Родительский чат)","max":6},{"task_num":12,"tema":"Читательская грамотность (Столкновение цивилизаций)","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":2},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":1},{"task_num":19,"tema":"Проверка ответов учащихся","max":2},{"task_num":20,"tema":"Нормативные документы реализации федеральной рабочей программы воспитания","max":2},{"task_num":21,"tema":"Общая и возрастная психология","max":2},{"task_num":22,"tema":"Педагогическая психология","max":2},{"task_num":23,"tema":"Использование цифровых образовательных ресурсов в образовательной деятельности","max":1}]},"Физика":{"predmet":[{"task_num":1,"tema":"Механика. Кинематика","max":4},{"task_num":2,"tema":"Механика. Динамика","max":4},{"task_num":3,"tema":"Механика. Законы сохранения","max":6},{"task_num":4,"tema":"Термодинамика. Молекулярно- кинетическая теория","max":4},{"task_num":5,"tema":"Термодинамика. Термодинамические процессы","max":6},{"task_num":6,"tema":"Электродинамика. Расчет электрических цепей","max":2},{"task_num":7,"tema":"Электродинамика. Электромагнитны е явления","max":8},{"task_num":8,"tema":"Оптика. Оптические явления","max":6},{"task_num":9,"tema":"Квантовая, атомная и ядерная физика. Квантовые явления","max":6},{"task_num":10,"tema":"Электростатика","max":4}],"fg":[{"task_num":11,"tema":"Читательская грамотность","max":6},{"task_num":12,"tema":"Естественно- научная грамотность","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":2},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":1},{"task_num":19,"tema":"Проверка ответов учащихся","max":2},{"task_num":20,"tema":"Нормативные документы реализации федеральной рабочей программы воспитания","max":2},{"task_num":21,"tema":"Общая и возрастная психология","max":2},{"task_num":22,"tema":"Педагогическая психология","max":2},{"task_num":23,"tema":"Использование цифровых образовательных ресурсов в образовательной деятельности","max":1}]},"Русский язык":{"predmet":[{"task_num":1,"tema":"Фонетика и графика. Лексика и фразеология","max":6},{"task_num":2,"tema":"Фонетика и графика. Орфоэпия","max":4},{"task_num":3,"tema":"Лексика и фразеология","max":4},{"task_num":4,"tema":"Морфемика и словообразование","max":2},{"task_num":5,"tema":"Морфология и орфография","max":4},{"task_num":6,"tema":"Синтаксис и пунктуация","max":6},{"task_num":7,"tema":"Синтаксис и пунктуация","max":6},{"task_num":8,"tema":"Синтаксис и пунктуация","max":6},{"task_num":9,"tema":"Лексика и фразеология","max":8},{"task_num":10,"tema":"Речь и речевое общение","max":4}],"fg":[{"task_num":11,"tema":"Читательская грамотность","max":6},{"task_num":12,"tema":"Читательская грамотность","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":2},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":1},{"task_num":19,"tema":"Проверка ответов учащихся","max":2},{"task_num":20,"tema":"Нормативные документы реализации федеральной рабочей программы воспитания","max":2},{"task_num":21,"tema":"Общая и возрастная психология","max":2},{"task_num":22,"tema":"Педагогическая психология","max":2},{"task_num":23,"tema":"Использование цифровых образовательных ресурсов в образовательной деятельности","max":1}]},"Математика":{"predmet":[{"task_num":1,"tema":"Числа и вычисления","max":4},{"task_num":2,"tema":"Уравнения и неравенства","max":4},{"task_num":3,"tema":"Уравнения и неравенства.","max":6},{"task_num":4,"tema":"Уравнения и неравенства. Система уравнений","max":6},{"task_num":5,"tema":"Начала математического анализа. Последовательност и","max":4},{"task_num":6,"tema":"Начала математического анализа. Производная","max":6},{"task_num":7,"tema":"Геометрия. Координаты и векторы","max":6},{"task_num":8,"tema":"Геометрия. Планиметрия","max":4},{"task_num":9,"tema":"Геометрия. Стереометрия","max":6},{"task_num":10,"tema":"Вероятность и статистика","max":4}],"fg":[{"task_num":11,"tema":"Читательская грамотность (Родительский чат)","max":6},{"task_num":12,"tema":"Математическая грамотность (Конкурс и распределение)","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":2},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":1},{"task_num":19,"tema":"Проверка ответов учащихся","max":2},{"task_num":20,"tema":"Нормативные документы реализации федеральной рабочей программы воспитания","max":2},{"task_num":21,"tema":"Общая и возрастная психология","max":2},{"task_num":22,"tema":"Педагогическая психология","max":2},{"task_num":23,"tema":"Использование цифровых образовательных ресурсов в образовательной деятельности","max":1}]},"География":{"predmet":[{"task_num":1,"tema":"Географическое изучение Земли. Изображение земной поверхности. География в современном мире","max":2},{"task_num":2,"tema":"География России. Место России в современном мире","max":4},{"task_num":3,"tema":"Географическое изучение Земли. Изображение земной поверхности. География в современном мире","max":6},{"task_num":4,"tema":"География как сфера","max":4},{"task_num":5,"tema":"Человечество на Земле. Материки и страны. Население мира","max":8},{"task_num":6,"tema":"География России. Место России в современном мире","max":6},{"task_num":7,"tema":"Мировое хозяйство","max":4},{"task_num":8,"tema":"Регионы и страны мира","max":4},{"task_num":9,"tema":"Мировое хозяйство","max":6},{"task_num":10,"tema":"Глобальные проблемы человечества","max":6}],"fg":[{"task_num":11,"tema":"Читательская грамотность","max":6},{"task_num":12,"tema":"Естественно- научная грамотность","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":2},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":1},{"task_num":19,"tema":"Проверка ответов учащихся","max":2},{"task_num":20,"tema":"Нормативные документы реализации федеральной рабочей программы воспитания","max":2},{"task_num":21,"tema":"Общая и возрастная психология","max":2},{"task_num":22,"tema":"Педагогическая психология","max":2},{"task_num":23,"tema":"Использование цифровых образовательных ресурсов в образовательной деятельности","max":1}]},"Физическая культура":{"predmet":[{"task_num":1,"tema":"Физкультурно- оздоровительная деятельность. Физические упражнения на различные группы мышцы","max":8},{"task_num":2,"tema":"Способы самостоятельной физической деятельности. Развитие физических качеств","max":6},{"task_num":3,"tema":"Знание и физической культуре. Оказание первой помощи","max":8},{"task_num":4,"tema":"Физкультурно- оздоровительная деятельность. Терминология физических упражнений","max":2},{"task_num":5,"tema":"Физкультурно- оздоровительная деятельность. Программы ЛФК","max":6},{"task_num":6,"tema":"Спортивно- оздоровительная деятельность. Правила командных игр","max":4},{"task_num":7,"tema":"Спортивно- оздоровительная деятельность. Классификация видов спорта или техник исполнения","max":6},{"task_num":8,"tema":"Знания о физической культуре. Спортивно- оздоровительная деятельность. Бег","max":4},{"task_num":9,"tema":"Знания о физической культуре. Олимпийское движение","max":2},{"task_num":10,"tema":"Знания о физической культуре. Значимые победы российского спорта","max":4}],"fg":[{"task_num":11,"tema":"Читательская грамотность","max":6},{"task_num":12,"tema":"Естественно-научная грамотность","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":2},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":1},{"task_num":19,"tema":"Проверка ответов учащихся","max":2},{"task_num":20,"tema":"Нормативные документы реализации федеральной рабочей программы воспитания","max":2},{"task_num":21,"tema":"Общая и возрастная психология","max":2},{"task_num":22,"tema":"Педагогическая психология","max":2},{"task_num":23,"tema":"Использование цифровых образовательных ресурсов в образовательной деятельности","max":1}]},"Биология":{"predmet":[{"task_num":1,"tema":"Клетка как биологическая система","max":2},{"task_num":2,"tema":"Система и многообразие органического мира","max":4},{"task_num":3,"tema":"Система и многообразие органического мира","max":4},{"task_num":4,"tema":"Организм человека и его здоровье","max":4},{"task_num":5,"tema":"Клетка как биологическая система","max":4},{"task_num":6,"tema":"Экосистемы и присущие им закономерност и","max":4},{"task_num":7,"tema":"Теория эволюции. Развитие жизни на Земле","max":6},{"task_num":8,"tema":"Организм как биологическая система","max":6},{"task_num":9,"tema":"Организм как биологическая система","max":8},{"task_num":10,"tema":"Организм как биологическая система","max":8}],"fg":[{"task_num":11,"tema":"Читательская грамотность","max":6},{"task_num":12,"tema":"Естественно- научная грамотность","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":2},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":1},{"task_num":19,"tema":"Проверка ответов учащихся","max":2},{"task_num":20,"tema":"Нормативные документы реализации федеральной рабочей программы воспитания","max":2},{"task_num":21,"tema":"Общая и возрастная психология","max":2},{"task_num":22,"tema":"Педагогическая психология","max":2},{"task_num":23,"tema":"Использование цифровых образовательных ресурсов в образовательной деятельности","max":1}]},"ОБЖ":{"predmet":[{"task_num":1,"tema":"Безопасное и устойчивое развитие личности, общества, государства","max":4},{"task_num":2,"tema":"Основы военной подготовки","max":8},{"task_num":3,"tema":"Культура безопасности","max":4},{"task_num":4,"tema":"Безопасность в быту","max":4},{"task_num":5,"tema":"Безопасность на транспорте","max":4},{"task_num":6,"tema":"Безопасность в общественных местах, в социуме","max":8},{"task_num":7,"tema":"Безопасность в природной среде","max":4},{"task_num":8,"tema":"Основы медицинских знаний. Оказание первой помощи","max":4},{"task_num":9,"tema":"Безопасность в информационном пространстве","max":6},{"task_num":10,"tema":"Противодействие экстремизму и терроризму","max":4}],"fg":[{"task_num":11,"tema":"Читательская грамотность","max":6},{"task_num":12,"tema":"Естественно- научная грамотность","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":2},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":1},{"task_num":19,"tema":"Проверка ответов учащихся","max":2},{"task_num":20,"tema":"Нормативные документы реализации федеральной рабочей программы воспитания","max":2},{"task_num":21,"tema":"Общая и возрастная психология","max":2},{"task_num":22,"tema":"Педагогическая психология","max":2},{"task_num":23,"tema":"Использование цифровых образовательных ресурсов в образовательной деятельности","max":1}]},"Химия":{"predmet":[{"task_num":1,"tema":"Теоретические основы химии. Эксперимент в химии","max":4},{"task_num":2,"tema":"Типы расчетных задач. Количественные соотношения в химии","max":6},{"task_num":3,"tema":"Теоретические основы химии. Строение атома, Периодическая система Д.И. Менделеева","max":2},{"task_num":4,"tema":"Теоретические основы химии. Химическая связь","max":4},{"task_num":5,"tema":"Теоретические основы химии. Химические реакции","max":6},{"task_num":6,"tema":"Теоретические основы химии. Дисперсные системы. Растворы","max":4},{"task_num":7,"tema":"Основы неорганической химии. Основные классы неорганических соединений","max":6},{"task_num":8,"tema":"Основы неорганической химии. Неметаллы и их соединения","max":4},{"task_num":9,"tema":"Основы неорганической химии. Металлы и их соединения","max":4},{"task_num":10,"tema":"Основы органической химии","max":10}],"fg":[{"task_num":11,"tema":"Читательская грамотность","max":6},{"task_num":12,"tema":"Естественно- научная грамотность","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":2},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":1},{"task_num":19,"tema":"Проверка ответов учащихся","max":2},{"task_num":20,"tema":"Нормативные документы реализации федеральной рабочей программы воспитания","max":2},{"task_num":21,"tema":"Общая и возрастная психология","max":2},{"task_num":22,"tema":"Педагогическая психология","max":2},{"task_num":23,"tema":"Использование цифровых образовательных ресурсов в образовательной деятельности","max":1}]},"Информатика (паскаль, СИ)":{"predmet":[{"task_num":1,"tema":"Теоретические основы информатики","max":4},{"task_num":2,"tema":"Теоретические основы информатики","max":4},{"task_num":3,"tema":"Графы и деревья","max":6},{"task_num":4,"tema":"Цифровая грамотность","max":4},{"task_num":5,"tema":"Алгоритмы и программиров ание","max":6},{"task_num":6,"tema":"Алгоритмы и программиров ание","max":6},{"task_num":7,"tema":"Алгоритмы и программиров ание","max":6},{"task_num":8,"tema":"Информацион ные технологии","max":4},{"task_num":9,"tema":"Информацион ные технологии","max":6},{"task_num":10,"tema":"Цифровая грамотность","max":4}],"fg":[{"task_num":11,"tema":"Читательская грамотность (Фейки и факты)","max":6},{"task_num":12,"tema":"Математическ ая грамотность (Конкурс и распределение )","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":2},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":1},{"task_num":19,"tema":"Проверка ответов учащихся","max":2},{"task_num":20,"tema":"Нормативные документы реализации федеральной рабочей программы воспитания","max":2},{"task_num":21,"tema":"Общая и возрастная психология","max":2},{"task_num":22,"tema":"Педагогическая психология","max":2},{"task_num":23,"tema":"Использование цифровых образовательных ресурсов в образовательной деятельности","max":1}]},"История":{"predmet":[{"task_num":1,"tema":"История как наука","max":6},{"task_num":2,"tema":"Счет лет в истории","max":2},{"task_num":3,"tema":"История Древнего мира","max":10},{"task_num":4,"tema":"История Средних веков. От Руси к Российскому государству. Культура Древней Руси","max":2},{"task_num":5,"tema":"События и явления XVII века","max":6},{"task_num":6,"tema":"Определение терминов","max":6},{"task_num":7,"tema":"Анализ визуальных источников","max":6},{"task_num":8,"tema":"История Нового времени","max":4},{"task_num":9,"tema":"История СССР","max":4},{"task_num":10,"tema":"События российской и мировой новейшей истории","max":4}],"fg":[{"task_num":11,"tema":"Читательская грамотность","max":6},{"task_num":12,"tema":"Читательская грамотность","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":2},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":1},{"task_num":19,"tema":"Проверка ответов учащихся","max":2},{"task_num":20,"tema":"Нормативные документы реализации федеральной рабочей программы воспитания","max":2},{"task_num":21,"tema":"Общая и возрастная психология","max":2},{"task_num":22,"tema":"Педагогическая психология","max":2},{"task_num":23,"tema":"Использование цифровых образовательных ресурсов в образовательной деятельности","max":1}]},"Технология":{"predmet":[{"task_num":1,"tema":"Производство и технологии","max":4},{"task_num":2,"tema":"Производство и технологии. Проектная деятельность","max":6},{"task_num":3,"tema":"Модуль «Технологии обработки материалов и пищевых продуктов»","max":4},{"task_num":4,"tema":"Технологии обработки конструкционных материалов","max":4},{"task_num":5,"tema":"Технологии обработки текстильных материалов","max":4},{"task_num":6,"tema":"Технология обработки пищевых продуктов","max":4},{"task_num":7,"tema":"«3D-моделирование, прототипирование, макетирование»","max":6},{"task_num":8,"tema":"Робототехника","max":6},{"task_num":9,"tema":"Робототехника. БПЛА","max":6},{"task_num":10,"tema":"Компьютерная графика. Черчение","max":6}],"fg":[{"task_num":11,"tema":"Читательская грамотность","max":6},{"task_num":12,"tema":"Математическая грамотность","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":2},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":1},{"task_num":19,"tema":"Проверка ответов учащихся","max":2},{"task_num":20,"tema":"Нормативные документы реализации федеральной рабочей программы воспитания","max":2},{"task_num":21,"tema":"Общая и возрастная психология","max":2},{"task_num":22,"tema":"Педагогическая психология","max":2},{"task_num":23,"tema":"Использование цифровых образовательных ресурсов в образовательной деятельности","max":1}]},"Изобразительное искусство":{"predmet":[{"task_num":1,"tema":"Основы изобразительной грамоты","max":6},{"task_num":2,"tema":"Средства выразительности","max":6},{"task_num":3,"tema":"Замысел художника","max":4},{"task_num":4,"tema":"Виды и жанры изобразительного искусства","max":4},{"task_num":5,"tema":"Народное художественное творчество","max":6},{"task_num":6,"tema":"История отечественной живописи","max":6},{"task_num":7,"tema":"История зарубежного искусства","max":6},{"task_num":8,"tema":"Конструктивное искусство","max":6},{"task_num":9,"tema":"Полиграфия","max":2},{"task_num":10,"tema":"Изображение в синтетических видах искусства","max":4}],"fg":[{"task_num":11,"tema":"Читательская грамотность","max":6},{"task_num":12,"tema":"Читательская грамотность","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":2},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":1},{"task_num":19,"tema":"Проверка ответов учащихся","max":2},{"task_num":20,"tema":"Нормативные документы реализации федеральной рабочей программы воспитания","max":2},{"task_num":21,"tema":"Общая и возрастная психология","max":2},{"task_num":22,"tema":"Педагогическая психология","max":2},{"task_num":23,"tema":"Использование цифровых образовательных ресурсов в образовательной деятельности","max":1}]},"Музыка":{"predmet":[{"task_num":1,"tema":"Музыкальная грамота. Свойства звука","max":4},{"task_num":2,"tema":"Музыкальная грамота. Музыкальные инструменты Музыка как вид искусства. Музыкально- сценические жанры","max":4},{"task_num":3,"tema":null,"max":4},{"task_num":4,"tema":"Музыкальная грамота. Оркестровая музыка","max":4},{"task_num":5,"tema":"Музыка и жизнь. Русское народное творчество","max":6},{"task_num":6,"tema":"Сольфеджио. Основы музыкальной грамотности","max":4},{"task_num":7,"tema":"Музыка и жизнь. Вокальная музыка","max":6},{"task_num":8,"tema":"Музыкальная грамота. Музыкальные формы и жанры","max":6},{"task_num":9,"tema":"История музыкального искусства. История зарубежной музыки","max":6},{"task_num":10,"tema":"История музыкального искусства. История русской музыки","max":6}],"fg":[{"task_num":11,"tema":"Читательская грамотность","max":6},{"task_num":12,"tema":"Читательская грамотность","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":2},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":1},{"task_num":19,"tema":"Проверка ответов учащихся","max":2},{"task_num":20,"tema":"Нормативные документы реализации федеральной рабочей программы воспитания","max":2},{"task_num":21,"tema":"Общая и возрастная психология","max":2},{"task_num":22,"tema":"Педагогическая психология","max":2},{"task_num":23,"tema":"Использование цифровых образовательных ресурсов в образовательной деятельности","max":1}]},"Немецкий язык":{"predmet":[{"task_num":1,"tema":"Аудирование. Понимание основного содержания прослушанного текста","max":4},{"task_num":2,"tema":"Аудирование. Понимание основного содержания прослушанного текста","max":4},{"task_num":3,"tema":"Чтение и","max":8},{"task_num":4,"tema":"Чтение и понимание текста. Понимание структурно- смысловых связей в тексте","max":6},{"task_num":5,"tema":"Морфология. Употребление прошедшего времени","max":4},{"task_num":6,"tema":"Морфология. Склонение прилагательных","max":4},{"task_num":7,"tema":"Синтаксис. Сложноподчиненн ые предложения","max":4},{"task_num":8,"tema":"Лексика. Словарный запас","max":4},{"task_num":9,"tema":"Лексика. Лексические трудности","max":4},{"task_num":10,"tema":"Лексика. Лексико- грамматические навыки","max":8}],"fg":[{"task_num":11,"tema":"Читательская грамотность","max":4},{"task_num":12,"tema":"Читательская грамотность","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":2},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":1},{"task_num":19,"tema":"Проверка ответов учащихся","max":2},{"task_num":20,"tema":"Нормативные документы реализации федеральной рабочей программы воспитания","max":2},{"task_num":21,"tema":"Общая и возрастная психология","max":2},{"task_num":22,"tema":"Педагогическая психология","max":2},{"task_num":23,"tema":"Использование цифровых образовательных ресурсов в образовательной деятельности","max":1}]},"Воспитатель ДОО":{"predmet":[{"task_num":1,"tema":"Социально- коммуникативно е развитие. Узнавание растений по их существенным признакам","max":4},{"task_num":2,"tema":"Социально- коммуникативно е развитие. Классификация животных","max":4},{"task_num":3,"tema":"Познавательное развитие. Логические суждения","max":4},{"task_num":4,"tema":"Познавательное развитие. Арифметические задачи","max":6},{"task_num":5,"tema":"Речевое развитие. Предложения и слова","max":4},{"task_num":6,"tema":"Речевое развитие. Предложения и слова","max":8},{"task_num":7,"tema":"Художественно- эстетическое развитие","max":6},{"task_num":8,"tema":"Художественно-эстетическое развитие","max":6},{"task_num":9,"tema":"Физическое развитие","max":4},{"task_num":10,"tema":"Физическое развитие","max":4}],"fg":[{"task_num":11,"tema":"Читательская грамотность","max":6},{"task_num":12,"tema":"Читательская грамотность","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: общие положения и целевые ориентиры","max":4},{"task_num":14,"tema":"Цели и задачи проектно- исследовательск ой деятельности","max":4},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Игровые технологии","max":4},{"task_num":18,"tema":"Предметно- пространственна я развивающая среда","max":3},{"task_num":19,"tema":"Оценочные процедуры","max":2},{"task_num":20,"tema":"Занятие- знакомство с новым материалом","max":3}]},"Социальный педагог":{"predmet":[],"fg":[{"task_num":1,"tema":"Читательская грамотность","max":6},{"task_num":2,"tema":"Читательская грамотность","max":9}],"metod":[{"task_num":3,"tema":"Взаимодействие между участниками психолого– педагогического сопровождения","max":2},{"task_num":4,"tema":"Конфликт в психолого- педагогической деятельности","max":4},{"task_num":5,"tema":"Динамика развития группы","max":2},{"task_num":6,"tema":"Виды психолого- педагогической деятельности","max":4},{"task_num":7,"tema":"Технологии коррекционно- развивающей работы","max":3},{"task_num":8,"tema":"Психолого- педагогическая диагностика Методы коррекционно- развивающей работы","max":5},{"task_num":9,"tema":"Методы коррекционно-развивающей работы","max":2},{"task_num":10,"tema":"Оценочные процедуры","max":3}]},"Педагог-психолог":{"predmet":[],"fg":[{"task_num":1,"tema":"Читательская грамотность","max":6},{"task_num":2,"tema":"Естественно- научная грамотность","max":9}],"metod":[{"task_num":3,"tema":"Взаимодействие между участниками психолого–педагогического сопровождения","max":2},{"task_num":4,"tema":"Конфликт в психолого- педагогической деятельности","max":4},{"task_num":5,"tema":"Динамика развития коллектива","max":2},{"task_num":6,"tema":"Виды психолого- педагогической деятельности","max":4},{"task_num":7,"tema":"Технологии коррекционно- развивающей работы","max":3},{"task_num":8,"tema":"Психолого-педагогическая диагностика","max":5},{"task_num":9,"tema":"Методы коррекционно-развивающей работы","max":2},{"task_num":10,"tema":"Оценочные процедуры","max":3}]},"Инструктор-методист ДЮСШ (тренер-преподаватель)":{"predmet":[{"task_num":1,"tema":"Способы самостоятельной физической деятельности. Развитие физических качеств","max":4},{"task_num":2,"tema":"Спортивно- оздоровительная деятельность. Правила командных игр","max":4},{"task_num":3,"tema":"Знание о физической культуре. Оказание первой помощи","max":4}],"fg":[{"task_num":4,"tema":"Читательская грамотность","max":6},{"task_num":5,"tema":"Естественно- научная грамотность","max":9}],"metod":[{"task_num":6,"tema":"Нормативно- правовое обеспечение дополнительного образования детей","max":6},{"task_num":7,"tema":"Профессиональные стандарты педагогов дополнительного образования","max":2},{"task_num":8,"tema":"Организация дополнительного образования. Программы дополнительного образования","max":4},{"task_num":9,"tema":"Организация дополнительного образования. Программы дополнительного образования","max":4},{"task_num":10,"tema":"Формы организации дополнительного образования детей","max":1},{"task_num":11,"tema":"Формы и методы обучения","max":4},{"task_num":12,"tema":"Взаимодействие участников дополнительного образования","max":4}]},"Музыкальный руководитель ДОО":{"predmet":[{"task_num":1,"tema":"Свойства музыкального звука","max":2},{"task_num":2,"tema":"Музыкальные инструменты","max":4},{"task_num":3,"tema":"Музыкально- сценические жанры","max":2}],"fg":[{"task_num":4,"tema":"Читательская грамотность","max":6},{"task_num":5,"tema":"Читательская грамотность","max":9}],"metod":[{"task_num":6,"tema":"ФГОС: общие положения и целевые ориентиры","max":4},{"task_num":7,"tema":"ФГОС: требования к результатам освоения ФОП ДОО","max":2},{"task_num":8,"tema":"Образовательная и исследовательск ая деятельность в ДОО","max":4},{"task_num":9,"tema":"Современные педагогические технологии","max":3},{"task_num":10,"tema":"Формы и методы обучения","max":4},{"task_num":11,"tema":"Игровые технологии","max":4},{"task_num":12,"tema":"Основы воспитательной деятельности","max":2},{"task_num":13,"tema":"Управление учебной группой","max":2}]},"Педагог-организатор":{"predmet":[],"fg":[{"task_num":1,"tema":"Читательская грамотность","max":6},{"task_num":2,"tema":"Читательская грамотность","max":9}],"metod":[{"task_num":3,"tema":"Взаимодействие между участниками психолого– педагогического сопровождения","max":2},{"task_num":4,"tema":"Конфликт в психолого- педагогической деятельности","max":4},{"task_num":5,"tema":"Динамика развития группы","max":2},{"task_num":6,"tema":"Виды психолого- педагогической деятельности","max":4},{"task_num":7,"tema":"Технологии коррекционно- развивающей работы","max":3},{"task_num":8,"tema":"Психолого- педагогическая диагностика Методы коррекционно- развивающей работы","max":5},{"task_num":9,"tema":"Методы коррекционно-развивающей работы","max":2},{"task_num":10,"tema":"Оценочные процедуры","max":3}]},"ОБЗР":{"predmet":[{"task_num":1,"tema":"Безопасное и устойчивое развитие личности, общества, государства","max":4},{"task_num":2,"tema":"Основы военной подготовки","max":8},{"task_num":3,"tema":"Культура безопасности","max":4},{"task_num":4,"tema":"Безопасность в быту","max":4},{"task_num":5,"tema":"Безопасность на транспорте","max":4},{"task_num":6,"tema":"Безопасность в общественных местах, в социуме","max":8},{"task_num":7,"tema":"Безопасность в природной среде","max":4},{"task_num":8,"tema":"Основы медицинских знаний. Оказание первой помощи","max":4},{"task_num":9,"tema":"Безопасность в информационном пространстве","max":6},{"task_num":10,"tema":"Противодействие экстремизму и терроризму","max":4}],"fg":[{"task_num":11,"tema":"Читательская грамотность","max":6},{"task_num":12,"tema":"Естественно- научная грамотность","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":2},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":1},{"task_num":19,"tema":"Проверка ответов учащихся","max":2},{"task_num":20,"tema":"Нормативные документы реализации федеральной рабочей программы воспитания","max":2},{"task_num":21,"tema":"Общая и возрастная психология","max":2},{"task_num":22,"tema":"Педагогическая психология","max":2},{"task_num":23,"tema":"Использование цифровых образовательных ресурсов в образовательной деятельности","max":1}]},"Учитель-дефектолог":{"predmet":[],"fg":[{"task_num":1,"tema":"Читательская грамотность","max":6},{"task_num":2,"tema":"Естественно- научная грамотность","max":9}],"metod":[{"task_num":3,"tema":"Взаимодействие между участниками психолого– педагогического сопровождения","max":2},{"task_num":4,"tema":"Конфликт в психолого-педагогической деятельности","max":4},{"task_num":5,"tema":"Динамика развития коллектива","max":2},{"task_num":6,"tema":"Виды психолого- педагогической деятельности","max":4},{"task_num":7,"tema":"Технологии коррекционно- развивающей работы","max":3},{"task_num":8,"tema":"Психолого-педагогическая диагностика","max":5},{"task_num":9,"tema":"Методы коррекционно-развивающей работы","max":2},{"task_num":10,"tema":"Оценочные процедуры","max":3}]},"Французский язык":{"predmet":[{"task_num":1,"tema":"Аудирование","max":10},{"task_num":2,"tema":"Чтение и понимание текста","max":4},{"task_num":3,"tema":"Синтаксис","max":6},{"task_num":4,"tema":"Чтение и понимание текста","max":6},{"task_num":5,"tema":"Лексика","max":4},{"task_num":6,"tema":"Аудирование","max":4},{"task_num":7,"tema":"Синтаксис","max":4},{"task_num":8,"tema":"Лексика","max":4},{"task_num":9,"tema":"Лексика","max":4},{"task_num":10,"tema":"Лексика","max":4}],"fg":[{"task_num":11,"tema":"Читательская грамотность","max":6},{"task_num":12,"tema":"Читательская грамотность","max":9}],"metod":[{"task_num":13,"tema":"ФГОС: планируемые результаты","max":4},{"task_num":14,"tema":"Цели и задачи проектно-исследовательской деятельности","max":2},{"task_num":15,"tema":"Современные педагогические технологии","max":3},{"task_num":16,"tema":"Формы и методы обучения","max":2},{"task_num":17,"tema":"Система оценки","max":4},{"task_num":18,"tema":"Современные методы оценивания","max":1},{"task_num":19,"tema":"Проверка ответов учащихся","max":2},{"task_num":20,"tema":"Нормативные документы реализации федеральной рабочей программы воспитания","max":2},{"task_num":21,"tema":"Общая и возрастная психология","max":2},{"task_num":22,"tema":"Педагогическая психология","max":2},{"task_num":23,"tema":"Использование цифровых образовательных ресурсов в образовательной деятельности","max":1}]}}</script>
 <script type="application/json" id="riku-group1-data">["Английский язык", "Начальная школа", "Литература", "Обществознание", "Физика", "Русский язык", "Математика", "География", "Физическая культура", "Биология", "ОБЖ", "ОБЗР", "Химия", "Информатика (паскаль, СИ)", "История", "Технология", "Изобразительное искусство", "Музыка", "Немецкий язык", "Французский язык"]</script>
 <script type="application/json" id="riku-group2-data">["Воспитатель ДОО", "Социальный педагог", "Учитель-дефектолог", "Педагог-психолог", "Инструктор-методист ДЮСШ (тренер-преподаватель)", "Музыкальный руководитель ДОО", "Педагог-организатор"]</script>
 
@@ -160,6 +268,9 @@
 
   var SPECS_OLD = JSON.parse(document.getElementById('riku-specs-data').textContent);
   var SPECS_NEW = JSON.parse(document.getElementById('riku-specs-data-2026').textContent);
+  // Сверка со спецификацией по реальной выгрузке (сентябрь 2026): у английского
+  // языка в предметном блоке макс. баллы заданий исправлены на 4,6,8,6,4,2,3,6,6,5
+  // (в выгрузке есть баллы 6 и 8 за задания 2-3, сумма блока — 50, как и раньше).
   var GROUP1 = new Set(JSON.parse(document.getElementById('riku-group1-data').textContent));
   var GROUP2 = new Set(JSON.parse(document.getElementById('riku-group2-data').textContent));
 
@@ -193,37 +304,134 @@
   var COL_OFFSETS_OLD = {metod:[9,17], predmet:[20,30], fg:[33,35]};
   var COL_OFFSETS_NEW = {metod:[9,20], predmet:[23,33], fg:[36,38]};
 
+  // Проверено на реальной выгрузке сентября 2026 г.: смещения COL_OFFSETS_NEW
+  // совпали с фактическими колонками (метод. 9-19, предм. 23-32, ФГ 36-37),
+  // суммы макс. баллов по спецификации совпали с колонкой «Максимальный балл».
+
   var SPECS = SPECS_OLD;
   var BLOCK_ORDER = BLOCK_ORDER_OLD;
   var COL_OFFSETS = COL_OFFSETS_OLD;
   var CURRENT_FORMAT = 'old';
+  // Индексы служебных колонок (по умолчанию — как в шаблоне СВОД; уточняются по шапке).
+  var BASE_COLS = {territory:1, school:2, fio:3, subject:4, pct:6, level:8};
+  var HEADER_ROW = 0;
+  var LAYOUT_SOURCE = 'шаблон';
 
-  // Определяем формат по ширине строк данных (число заполненных колонок).
-  // Новый формат шире минимум на 3 колонки методического блока.
-  var NEW_FORMAT_MIN_WIDTH = COL_OFFSETS_NEW.fg[0]; // 36: колонка, которая в старом формате не используется
-  function detectFormat(rows){
-    var maxWidth = 0;
-    for (var i = 1; i < rows.length; i++){
-      var row = rows[i];
-      if (!row) continue;
-      if (row.length > maxWidth) maxWidth = row.length;
-      // также проверяем, есть ли реальные (не null/undefined) значения в колонках
-      // 17-19, которые в новом формате относятся к методическому блоку (доп. задания
-      // 20-23 в терминах номеров, но по факту колонки 17,18,19 = 4-е,5-е,6-е доп.
-      // задание методического блока у предметников)
+  // ---- Разбор шапки файла: колонки блоков находим по заголовкам
+  // («Метод., %», «Предмет., %», «ФГ, %») и подряд идущим номерам заданий
+  // перед ними. Так формат (8 или 11 заданий метод. блока) определяется
+  // по самому файлу, а не по ширине строк — раньше старый файл с 38 колонками
+  // ошибочно распознавался как новый. ----
+  function normHdr(v){ return (v == null ? '' : String(v)).replace(/ /g,' ').replace(/\s+/g,' ').trim().toLowerCase(); }
+  function isTaskHdr(v){
+    if (typeof v === 'number') return isFinite(v) && v > 0 && Math.floor(v) === v;
+    return /^\d{1,2}$/.test(normHdr(v));
+  }
+  function detectLayout(rows){
+    var limit = Math.min(rows.length, 15);
+    for (var h = 0; h < limit; h++){
+      var row = rows[h] || [];
+      var hdr = []; for (var i = 0; i < row.length; i++) hdr.push(normHdr(row[i]));
+      var fioIdx = hdr.indexOf('фио');
+      if (fioIdx < 0){
+        for (var k = 0; k < hdr.length; k++){ if (/^ф\.?\s?и\.?\s?о\.?$|^фио\b/.test(hdr[k])){ fioIdx = k; break; } }
+      }
+      if (fioIdx < 0) continue;
+      var find = function(re, from){
+        for (var j = from || 0; j < hdr.length; j++){ if (re.test(hdr[j])) return j; }
+        return -1;
+      };
+      var mPct = find(/^метод/);
+      var pPct = find(/^предмет\.?\s*,?\s*%|^предм\.?\s*,?\s*%/);
+      var fPct = find(/^фг/);
+      if (mPct < 0 || pPct < 0 || fPct < 0) continue;
+      var runBefore = function(endIdx){
+        var s = endIdx;
+        while (s - 1 >= 0 && isTaskHdr(row[s - 1])) s--;
+        return [s, endIdx];
+      };
+      var mR = runBefore(mPct), pR = runBefore(pPct), fR = runBefore(fPct);
+      if (mR[1] - mR[0] < 1 || pR[1] - pR[0] < 1 || fR[1] - fR[0] < 1) continue;
+      var subjIdx = find(/тема\s*\/\s*предмет|^предмет$|специализац|должност/);
+      var terrIdx = find(/мсу|муниципал|территор|округ/);
+      var schoolIdx = find(/наименование оо|^оо$|образовательн.*организац|^школа/);
+      var pctIdx = find(/процент выполнения|% выполнения/);
+      var levelIdx = find(/уровень подготовки|^уровень$/);
+      return {
+        headerRow: h,
+        base: {
+          territory: terrIdx >= 0 ? terrIdx : 1,
+          school: schoolIdx >= 0 ? schoolIdx : 2,
+          fio: fioIdx,
+          subject: subjIdx >= 0 ? subjIdx : fioIdx + 1,
+          pct: pctIdx >= 0 ? pctIdx : 6,
+          level: levelIdx >= 0 ? levelIdx : 8
+        },
+        offsets: {metod: mR, predmet: pR, fg: fR},
+        format: (mR[1] - mR[0]) >= 11 ? 'new' : 'old'
+      };
     }
-    return maxWidth >= NEW_FORMAT_MIN_WIDTH ? 'new' : 'old';
+    return null;
   }
 
-  function applyFormat(fmt){
+  // Запасной вариант, если шапку распознать не удалось: в старом шаблоне в
+  // колонке 19 стоит «Уровень за блок» (текст), в новом — балл за задание.
+  function detectFormatFallback(rows){
+    var oldVotes = 0, newVotes = 0;
+    for (var i = 1; i < rows.length; i++){
+      var v = rows[i] && rows[i][19];
+      if (v == null || v === '') continue;
+      if (toNum(v) !== null) newVotes++; else oldVotes++;
+    }
+    return newVotes > oldVotes ? 'new' : 'old';
+  }
+
+  // Балл из ячейки: число, либо число, записанное текстом («2», «2,5», « 3 »).
+  // Раньше текстовые баллы отбрасывались — и все таблицы выходили пустыми.
+  function toNum(v){
+    if (typeof v === 'number') return isFinite(v) ? v : null;
+    if (v == null) return null;
+    var s = String(v).replace(/ /g, ' ').trim().replace(',', '.');
+    if (s === '') return null;
+    if (/^-?\d+(\.\d+)?$/.test(s)) return parseFloat(s);
+    return null;
+  }
+  function normLevel(v){
+    var s = (v == null ? '' : String(v)).replace(/ /g,' ').trim().toLowerCase();
+    if (s === 'низкий') return 'Низкий';
+    if (s === 'базовый') return 'Базовый';
+    if (s === 'повышенный') return 'Повышенный';
+    if (s === 'высокий') return 'Высокий';
+    return s;
+  }
+
+  function applyFormat(fmt, layout){
     CURRENT_FORMAT = fmt;
     if (fmt === 'new'){
       SPECS = SPECS_NEW; BLOCK_ORDER = BLOCK_ORDER_NEW; COL_OFFSETS = COL_OFFSETS_NEW;
     } else {
       SPECS = SPECS_OLD; BLOCK_ORDER = BLOCK_ORDER_OLD; COL_OFFSETS = COL_OFFSETS_OLD;
     }
+    BASE_COLS = {territory:1, school:2, fio:3, subject:4, pct:6, level:8};
+    HEADER_ROW = 0;
+    LAYOUT_SOURCE = 'шаблон';
+    if (layout){
+      COL_OFFSETS = layout.offsets;
+      BASE_COLS = layout.base;
+      HEADER_ROW = layout.headerRow;
+      LAYOUT_SOURCE = 'шапка файла';
+      BLOCK_ORDER = [
+        {key:'metod', label:'Методический', n: layout.offsets.metod[1] - layout.offsets.metod[0]},
+        {key:'predmet', label:'Предметный', n: layout.offsets.predmet[1] - layout.offsets.predmet[0]},
+        {key:'fg', label:'ФГ', n: layout.offsets.fg[1] - layout.offsets.fg[0]}
+      ];
+    }
     taskRowsCache = {};
+    SPEC_MAX_ISSUES = {};
   }
+
+  // Несоответствия «балл в файле больше макс. балла задания по спецификации».
+  var SPEC_MAX_ISSUES = {};
 
   var COLOR = {
     red:'FFF8CBAD', yellow:'FFFFE699', green:'FFC6E0B4',
@@ -238,7 +446,9 @@
   }
 
   function sanitizeSheetName(name){
-    return (name || '').replace(/[\\\/\*\?:\[\]]/g, ' ').substring(0, 31);
+    var s = String(name || '').replace(/[\\\/\*\?:\[\]]/g, ' ').replace(/\s+/g, ' ').trim();
+    s = s.substring(0, 31).trim().replace(/^'+|'+$/g, '');
+    return s;
   }
 
   // ---------------- file input / dnd wiring ----------------
@@ -253,6 +463,7 @@
   var selectedFile = null;
 
   dropEl.addEventListener('click', function(){ inputEl.click(); });
+  dropEl.addEventListener('keydown', function(e){ if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); inputEl.click(); } });
   dropEl.addEventListener('dragover', function(e){ e.preventDefault(); dropEl.classList.add('dragover'); });
   dropEl.addEventListener('dragleave', function(){ dropEl.classList.remove('dragover'); });
   dropEl.addEventListener('drop', function(e){
@@ -305,49 +516,86 @@
   });
 
   // ---------------- core pipeline ----------------
+  // Сопоставление названия предмета из файла со справочником групп с учётом
+  // лишних пробелов и регистра («Воспитатель ДОО » → «Воспитатель ДОО»).
+  var GROUP_LOOKUP = {};
+  GROUP1.forEach(function(s){ GROUP_LOOKUP[normHdr(s)] = s; });
+  GROUP2.forEach(function(s){ GROUP_LOOKUP[normHdr(s)] = s; });
+  function canonSubject(v){
+    var key = normHdr(v);
+    return GROUP_LOOKUP[key] || (v == null ? '' : String(v).replace(/\s+/g,' ').trim());
+  }
+
   function buildRecords(rows, formatChoice){
-    var detected = detectFormat(rows);
+    var layout = detectLayout(rows);
+    var detected = layout ? layout.format : detectFormatFallback(rows);
     var resolvedFormat = (formatChoice === 'old' || formatChoice === 'new') ? formatChoice : detected;
-    applyFormat(resolvedFormat);
+    applyFormat(resolvedFormat, layout);
 
     var records = [];
     var unclassified = {};
     var missingSpec = {};
-    for (var r = 1; r < rows.length; r++){
+    var empiricalMaxAll = {}; // макс. фактический балл по каждому заданию — по ВСЕМ строкам (всех уровней)
+    var numericScores = 0, textScores = 0, levelCounts = {};
+    for (var r = HEADER_ROW + 1; r < rows.length; r++){
       var row = rows[r];
       if (!row) continue;
-      var fio = row[3];
-      if (!fio) continue;
-      var subject = row[4];
-      var districtRaw = row[1];
-      var district = (districtRaw == null ? '' : String(districtRaw)).trim();
-      var overallLevel = row[8];
-      if (overallLevel !== 'Низкий' && overallLevel !== 'Базовый') continue;
+      var fio = row[BASE_COLS.fio];
+      if (fio == null || String(fio).trim() === '') continue;
+      var subject = canonSubject(row[BASE_COLS.subject]);
+      var districtRaw = row[BASE_COLS.territory];
+      var district = (districtRaw == null ? '' : String(districtRaw)).replace(/\s+/g,' ').trim();
+      var overallLevel = normLevel(row[BASE_COLS.level]);
+      levelCounts[overallLevel] = (levelCounts[overallLevel]||0) + 1;
       var group = null;
       if (GROUP1.has(subject)) group = 1;
       else if (GROUP2.has(subject)) group = 2;
-      else { unclassified[subject] = (unclassified[subject]||0)+1; continue; }
       if (subject === 'ОБЖ') subject = 'ОБЗР';
+
+      var scores = {};
+      ['metod','predmet','fg'].forEach(function(bkey){
+        var raw = row.slice(COL_OFFSETS[bkey][0], COL_OFFSETS[bkey][1]);
+        var arr = [];
+        for (var i = 0; i < raw.length; i++){
+          var n = toNum(raw[i]);
+          if (n !== null){
+            numericScores++;
+            if (typeof raw[i] !== 'number') textScores++;
+            if (group){
+              empiricalMaxAll[subject] = empiricalMaxAll[subject] || {};
+              var k = bkey + '_' + i;
+              if (!empiricalMaxAll[subject][k] || n > empiricalMaxAll[subject][k]) empiricalMaxAll[subject][k] = n;
+            }
+          }
+          arr.push(n);
+        }
+        scores[bkey] = arr;
+      });
+
+      if (overallLevel !== 'Низкий' && overallLevel !== 'Базовый') continue;
+      if (!group){ unclassified[subject] = (unclassified[subject]||0)+1; continue; }
       if (!SPECS[subject]) missingSpec[subject] = (missingSpec[subject]||0)+1;
 
-      var metodScores = row.slice(COL_OFFSETS.metod[0], COL_OFFSETS.metod[1]);
-      var predmetScores = row.slice(COL_OFFSETS.predmet[0], COL_OFFSETS.predmet[1]);
-      var fgScores = row.slice(COL_OFFSETS.fg[0], COL_OFFSETS.fg[1]);
-
+      var schoolRaw = row[BASE_COLS.school];
       records.push({
-        fio: String(fio).trim(),
-        school: row[2],
+        fio: String(fio).replace(/\s+/g,' ').trim(),
+        school: schoolRaw == null ? '' : String(schoolRaw).replace(/\s+/g,' ').trim(),
         subject: subject,
         group: group,
         territory: district,
         overallLevel: overallLevel,
-        overallPct: row[6],
-        metodScores: metodScores,
-        predmetScores: predmetScores,
-        fgScores: fgScores
+        overallPct: toNum(row[BASE_COLS.pct]),
+        metodScores: scores.metod,
+        predmetScores: scores.predmet,
+        fgScores: scores.fg
       });
     }
-    return {records: records, unclassified: unclassified, missingSpec: missingSpec, format: resolvedFormat, detectedFormat: detected};
+    return {
+      records: records, unclassified: unclassified, missingSpec: missingSpec,
+      format: resolvedFormat, detectedFormat: detected, layout: layout,
+      empiricalMaxAll: empiricalMaxAll, numericScores: numericScores, textScores: textScores,
+      levelCounts: levelCounts
+    };
   }
 
   function computeEmpiricalMax(records){
@@ -372,7 +620,15 @@
     var slist = (SPECS[subject] && SPECS[subject][bkey]) || [];
     if (pos < slist.length){
       var t = slist[pos];
-      var max = (t.max && t.max > 0) ? t.max : (empiricalMax[subject] && empiricalMax[subject][bkey+'_'+pos]) || 0;
+      var obs = (empiricalMax[subject] && empiricalMax[subject][bkey+'_'+pos]) || 0;
+      var max = (t.max && t.max > 0) ? t.max : obs;
+      // Если фактический балл в файле выше макс. балла по спецификации —
+      // спецификация заведомо неточна: берём фактический максимум (иначе
+      // проценты выходят больше 100) и сообщаем об этом в сводке.
+      if (t.max && t.max > 0 && obs > t.max){
+        SPEC_MAX_ISSUES[subject + '|' + t.task_num] = {subject: subject, taskNum: t.task_num, specMax: t.max, obsMax: obs};
+        max = obs;
+      }
       if (max > 0){
         return {tema: t.tema || ('Задание ' + (pos+1)), max: max, taskNum: t.task_num};
       }
@@ -404,13 +660,70 @@
     return (typeof v === 'number') ? v : null;
   }
 
+  // ---------------- безопасная запись .xlsx ----------------
+  // ExcelJS записывает дочерние элементы <font> в styles.xml не в том порядке,
+  // который требует схема Office Open XML (sz/color/name/family/scheme).
+  // Перед выдачей файла упорядочиваем их и убираем «пустое» закрепление
+  // областей — чтобы Excel открывал файлы без сообщения о восстановлении.
+  var FONT_CHILD_ORDER = ['b','i','strike','condense','extend','outline','shadow','u','vertAlign','sz','color','name','family','charset','scheme'];
+  function fixStylesXml(xml){
+    return xml.replace(/<font>([\s\S]*?)<\/font>/g, function(all, inner){
+      var parts = inner.match(/<([A-Za-z]+)\b[^>]*\/>|<([A-Za-z]+)\b[^>]*>[\s\S]*?<\/\2>/g) || [];
+      parts.sort(function(a, b){
+        var ta = a.match(/^<([A-Za-z]+)/)[1], tb = b.match(/^<([A-Za-z]+)/)[1];
+        var ia = FONT_CHILD_ORDER.indexOf(ta), ib = FONT_CHILD_ORDER.indexOf(tb);
+        return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+      });
+      return '<font>' + parts.join('') + '</font>';
+    });
+  }
+  function fixSheetXml(xml){
+    // pane с state="frozen" без xSplit/ySplit некорректен — убираем его
+    return xml.replace(/<pane(?![^>]*\b[xy]Split="[1-9])[^>]*\/>/g, '')
+              .replace(/<selection pane="bottomLeft"\/>/g, '');
+  }
+  async function writeXlsx(wb){
+    var buf = await wb.xlsx.writeBuffer();
+    try {
+      var zip = await JSZip.loadAsync(buf);
+      var st = zip.file('xl/styles.xml');
+      if (st) zip.file('xl/styles.xml', fixStylesXml(await st.async('string')));
+      var sheetNames = Object.keys(zip.files).filter(function(n){ return /^xl\/worksheets\/sheet\d+\.xml$/.test(n); });
+      for (var i = 0; i < sheetNames.length; i++){
+        var x = await zip.file(sheetNames[i]).async('string');
+        zip.file(sheetNames[i], fixSheetXml(x));
+      }
+      return await zip.generateAsync({type:'arraybuffer', compression:'DEFLATE', compressionOptions:{level:6}, mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    } catch (e){
+      console.warn('writeXlsx post-process failed, using raw ExcelJS output', e);
+      return buf;
+    }
+  }
+
   // ---------------- ExcelJS sheet writers ----------------
+  // Значение ячейки, безопасное для Excel: без NaN/Infinity, без управляющих
+  // символов и не длиннее лимита Excel (32 767 знаков) — иначе Excel при
+  // открытии сообщает о повреждении и «восстанавливает» файл.
+  function cleanCellValue(v){
+    if (v === undefined) return null;
+    if (typeof v === 'number') return isFinite(v) ? v : null;
+    if (typeof v === 'string'){
+      var s = v.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/g, '');
+      return s.length > 32000 ? s.substring(0, 32000) + '…' : s;
+    }
+    return v;
+  }
   function setCell(ws, row, col, value, opts){
     opts = opts || {};
     var cell = ws.getCell(row, col);
-    cell.value = value;
+    cell.value = cleanCellValue(value);
     if (opts.bold || opts.italic || opts.color || opts.size){
-      cell.font = {bold: !!opts.bold, italic: !!opts.italic, color: opts.color ? {argb: opts.color} : undefined, size: opts.size};
+      var font = {};
+      if (opts.bold) font.bold = true;
+      if (opts.italic) font.italic = true;
+      if (opts.color) font.color = {argb: opts.color};
+      if (opts.size) font.size = opts.size;
+      cell.font = font;
     }
     if (opts.fill){ cell.fill = {type:'pattern', pattern:'solid', fgColor:{argb: opts.fill}}; }
     if (opts.border){
@@ -463,7 +776,9 @@
       row++;
     });
     ws.columns = [{width:22},{width:9},{width:46},{width:9},{width:11},{width:9}];
-    ws.views = [{state:'frozen', ySplit:0}];
+    // ВАЖНО: не задаём «закрепление областей» с нулевым смещением
+    // (ws.views frozen, ySplit:0) — такая запись некорректна, и Excel при
+    // каждом открытии предлагал «восстановить» файл.
   }
 
   function writeSvodSheet(ws, subject, subjRecords, terrName, empiricalMax, levelLabel){
@@ -765,48 +1080,83 @@
     return subjects.sort(function(a,b){return a.localeCompare(b,'ru');});
   }
 
-  function writeNewTopicsPrepSheet(ws, subject){
+  // Фактические результаты по новым заданиям 2026 года из загруженной выгрузки
+  // (вся выборка по региону, база+низкий). Возвращает {taskNum: {avg, n}} или
+  // null, если файл старого формата либо по предмету нет данных.
+  function newTaskStats(subject, records, empiricalMax){
+    if (CURRENT_FORMAT !== 'new' || !records || !GROUP1.has(subject)) return null;
+    var recs = records.filter(function(r){ return r.subject === subject; });
+    if (!recs.length) return null;
+    var out = {};
+    collectTaskRows(subject, empiricalMax).forEach(function(t){
+      if (t.block !== 'metod' || t.taskNum < NEW_SPEC_METOD_MIN_TASK_NUM) return;
+      var pcts = [];
+      recs.forEach(function(r){
+        var sc = personScore(r, t.block, t.pos);
+        if (sc !== null && t.max) pcts.push(sc / t.max * 100);
+      });
+      if (pcts.length) out[t.taskNum] = {avg: Math.round(pcts.reduce(function(a,b){return a+b;},0) / pcts.length * 10) / 10, n: pcts.length};
+    });
+    return out;
+  }
+
+  function writeNewTopicsPrepSheet(ws, subject, stats){
     var tasks = getNewSpecTasksForSubject(subject);
+    var hasData = !!(stats && Object.keys(stats).length);
     var row = 1;
-    setCell(ws, row, 1, 'ПРОАКТИВНАЯ ПОДГОТОВКА К НОВЫМ ТЕМАМ СПЕЦИФИКАЦИИ КУРО 2026 ГОДА — ' + subject, {bold:true, size:13}); row++;
-    setCell(ws, row, 1, 'Методический блок спецификации пополнен новыми заданиями (2026 год, раздел «Добавлено»). Диагностика по ним ещё не проводилась, эмпирических дефицитов нет — мероприятия организуются заблаговременно на всех трёх уровнях, одинаково для всех территорий.', {italic:true, wrap:true}); row += 2;
-    var headers = ['№ задания','Тема задания','Статус','Межмуниципальный уровень (УМЦ)','ГМО','ШМО'];
+    setCell(ws, row, 1, 'ПОДГОТОВКА ПО НОВЫМ ТЕМАМ СПЕЦИФИКАЦИИ КУРО 2026 ГОДА — ' + subject, {bold:true, size:13}); row++;
+    var intro = hasData
+      ? 'Методический блок спецификации пополнен новыми заданиями (2026 год, раздел «Добавлено»). По загруженной выгрузке по ним уже есть фактические результаты (вся выборка по региону, база+низкий): задания со средним результатом ниже 50% отмечены как дефицит — по ним мероприятия обязательны; освоенные темы — достаточно поддерживающего формата.'
+      : 'Методический блок спецификации пополнен новыми заданиями (2026 год, раздел «Добавлено»). В загруженной выгрузке результатов по ним для этого предмета нет — мероприятия организуются заблаговременно на всех трёх уровнях, одинаково для всех территорий.';
+    setCell(ws, row, 1, intro, {italic:true}); row += 2;
+    var headers = ['№ задания','Тема задания','% выполнения (факт)','Статус','Межмуниципальный уровень (УМЦ)','ГМО','ШМО'];
     headers.forEach(function(h,j){ setCell(ws, row, j+1, h, {bold:true, color:'FFFFFFFF', fill:COLOR.header, border:true, wrap:true}); });
     row++;
     if (!tasks.length){
       setCell(ws, row, 1, '(для этой специальности новых заданий 2026 года в методическом блоке нет)');
-      ws.columns = [{width:12},{width:40},{width:20},{width:42},{width:42},{width:42}];
+      ws.columns = [{width:12},{width:40},{width:14},{width:30},{width:42},{width:42},{width:42}];
       return;
     }
     tasks.forEach(function(t){
       var rec = recommendForDeficit(subject, 'metod', t.tema, t.taskNum);
+      var st = stats ? stats[t.taskNum] : null;
+      var status, statusFill = null;
+      if (st){
+        if (st.avg < 50){ status = 'ДЕФИЦИТ по реальной выгрузке (' + st.n + ' чел.) — мероприятия обязательны'; statusFill = COLOR.red; }
+        else { status = 'Освоено по реальной выгрузке (' + st.n + ' чел.) — достаточно поддерживающего формата'; statusFill = COLOR.green; }
+      } else if (CURRENT_FORMAT === 'new'){
+        status = 'Новое задание 2026 года — в выгрузке нет данных по этому предмету (среди низкого/базового уровня)';
+      } else {
+        status = 'Новое задание 2026 года — в файле старого формата (20 заданий) его нет, подготовка заблаговременно';
+      }
       setCell(ws, row, 1, t.taskNum, {border:true, wrap:true});
       setCell(ws, row, 2, t.tema, {border:true, wrap:true});
-      setCell(ws, row, 3, 'новое задание 2026 года — диагностических данных пока нет', {border:true, wrap:true, italic:true});
-      setCell(ws, row, 4, rec.umc.map(function(x){return x.title;}).join('\n'), {border:true, wrap:true});
-      setCell(ws, row, 5, rec.gmo.map(function(x){return x.title;}).join('\n'), {border:true, wrap:true});
-      setCell(ws, row, 6, rec.shmo.map(function(x){return x.title;}).join('\n'), {border:true, wrap:true});
+      setCell(ws, row, 3, st ? st.avg : '—', {border:true, wrap:true, fill: st ? pctFillArgb(st.avg) : null});
+      setCell(ws, row, 4, status, {border:true, wrap:true, italic:!st, fill: statusFill});
+      setCell(ws, row, 5, rec.umc.map(function(x){return x.title;}).join('\n'), {border:true, wrap:true});
+      setCell(ws, row, 6, rec.gmo.map(function(x){return x.title;}).join('\n'), {border:true, wrap:true});
+      setCell(ws, row, 7, rec.shmo.map(function(x){return x.title;}).join('\n'), {border:true, wrap:true});
       ws.getRow(row).height = 60;
       row++;
     });
-    ws.columns = [{width:12},{width:40},{width:20},{width:42},{width:42},{width:42}];
+    ws.columns = [{width:12},{width:40},{width:14},{width:30},{width:42},{width:42},{width:42}];
   }
 
-  async function buildNewTopicsPrepWorkbook(subject){
+  async function buildNewTopicsPrepWorkbook(subject, records, empiricalMax){
     var wb = new ExcelJS.Workbook();
     var ws = wb.addWorksheet(sanitizeSheetName(subject) || 'Лист');
-    writeNewTopicsPrepSheet(ws, subject);
-    var buf = await wb.xlsx.writeBuffer();
+    writeNewTopicsPrepSheet(ws, subject, newTaskStats(subject, records, empiricalMax));
+    var buf = await writeXlsx(wb);
     return buf;
   }
 
   // Отдельный файл на каждый предмет (одинаковое содержание для всех
   // территорий — мероприятия не зависят от конкретных данных диагностики).
-  async function buildAllNewTopicsPrepFiles(){
+  async function buildAllNewTopicsPrepFiles(records, empiricalMax){
     var subjects = listSubjectsWithNewSpecTasks();
     var out = [];
     for (var i=0;i<subjects.length;i++){
-      var buf = await buildNewTopicsPrepWorkbook(subjects[i]);
+      var buf = await buildNewTopicsPrepWorkbook(subjects[i], records, empiricalMax);
       out.push({territory: subjects[i], buffer: buf});
       await new Promise(function(res){ setTimeout(res, 0); });
     }
@@ -833,18 +1183,22 @@
         if (!pcts.length) return;
         var avg = pcts.reduce(function(a,b){return a+b;},0) / pcts.length;
         if (avg >= 50) return;
+        var isNew2026 = (CURRENT_FORMAT === 'new' && GROUP1.has(subj) && t.block === 'metod' && t.taskNum >= NEW_SPEC_METOD_MIN_TASK_NUM);
         rows.push({
-          source: 'Выявленный дефицит', subject: subj, taskNum: t.taskNum, tema: t.tema,
+          source: isNew2026 ? 'Выявленный дефицит (новая тема 2026)' : 'Выявленный дефицит', subject: subj, taskNum: t.taskNum, tema: t.tema,
           pctInfo: (Math.round(avg*10)/10) + '%',
           recommend: recommendForDeficit(subj, t.block, t.tema, t.taskNum)
         });
       });
     });
     listSubjectsWithNewSpecTasks().forEach(function(subj){
+      // Если по предмету в выгрузке нового формата уже есть результаты, новые
+      // темы оценены по факту (дефициты вошли выше) — проактивная строка не нужна.
+      if (CURRENT_FORMAT === 'new' && bySubj[subj]) return;
       getNewSpecTasksForSubject(subj).forEach(function(t){
         rows.push({
           source: 'Новое задание спецификации 2026', subject: subj, taskNum: t.taskNum, tema: t.tema,
-          pctInfo: 'диагностических данных пока нет',
+          pctInfo: CURRENT_FORMAT === 'new' ? 'нет данных по предмету в выгрузке' : 'нет в файле старого формата',
           recommend: recommendForDeficit(subj, 'metod', t.tema, t.taskNum)
         });
       });
@@ -859,7 +1213,7 @@
   function writeTypicalPlanLevelSheet(ws, levelKey, levelLabel, rows){
     var row = 1;
     setCell(ws, row, 1, 'СВОДНЫЙ ТИПОВОЙ ПЛАН РАБОТЫ ПО МЕРОПРИЯТИЯМ — ' + levelLabel, {bold:true, size:13}); row++;
-    setCell(ws, row, 1, 'Объединены мероприятия по фактически выявленным дефицитам (вся выборка по региону, база+низкий объединены, <50%) и мероприятия по новым темам спецификации КУРО 2026 года (проактивная подготовка, диагностических данных пока нет).', {italic:true, wrap:true}); row += 2;
+    setCell(ws, row, 1, 'Объединены мероприятия по фактически выявленным дефицитам (вся выборка по региону, база+низкий объединены, <50%), включая новые темы спецификации КУРО 2026 года, если по ним есть результаты в выгрузке, и проактивные мероприятия по новым темам для предметов, по которым результатов в выгрузке нет.', {italic:true}); row += 2;
     var headers = ['Источник','Предмет/специализация','№ задания','Тема задания','% выполнения / статус','Мероприятие'];
     headers.forEach(function(h,j){ setCell(ws, row, j+1, h, {bold:true, color:'FFFFFFFF', fill:COLOR.header, border:true, wrap:true}); });
     row++;
@@ -890,7 +1244,7 @@
       var ws = wb.addWorksheet(lv.key.toUpperCase());
       writeTypicalPlanLevelSheet(ws, lv.key, lv.label, rows);
     });
-    var buf = await wb.xlsx.writeBuffer();
+    var buf = await writeXlsx(wb);
     return buf;
   }
 
@@ -1294,7 +1648,7 @@
         var ws = wb.addWorksheet(sanitizeSheetName(subj) || 'Лист');
         writeDetailSheet(ws, subj, subjDict[subj], level, empiricalMax);
       });
-      var buf = await wb.xlsx.writeBuffer();
+      var buf = await writeXlsx(wb);
       out.push({territory: terr, buffer: buf});
     }
     return out;
@@ -1313,7 +1667,7 @@
         var ws = wb.addWorksheet(sanitizeSheetName(subj) || 'Лист');
         writeSvodSheet(ws, subj, subjDict[subj], terr, empiricalMax, level);
       });
-      var buf = await wb.xlsx.writeBuffer();
+      var buf = await writeXlsx(wb);
       out.push({territory: terr, buffer: buf});
     }
     return out;
@@ -1333,7 +1687,7 @@
         var ws = wb.addWorksheet(sanitizeSheetName(subj) || 'Лист');
         writeSvodDeficitSheet(ws, subj, subjDict[subj], terr, empiricalMax);
       });
-      var buf = await wb.xlsx.writeBuffer();
+      var buf = await writeXlsx(wb);
       out.push({territory: terr, buffer: buf});
     }
     return out;
@@ -1362,7 +1716,7 @@
       var ws = wb.addWorksheet(sanitizeSheetName(subj) || 'Лист');
       writeSvodDeficitSheet(ws, subj, bySubj[subj], 'Весь регион (все территории)', empiricalMax);
     });
-    var buf = await wb.xlsx.writeBuffer();
+    var buf = await writeXlsx(wb);
     return buf;
   }
 
@@ -1456,7 +1810,7 @@
       var ws = wb.addWorksheet(sanitizeSheetName(subj) || 'Лист');
       writeUmcMeasuresSheet(ws, subj, bySubj[subj], empiricalMax);
     });
-    var buf = await wb.xlsx.writeBuffer();
+    var buf = await writeXlsx(wb);
     return buf;
   }
 
@@ -1520,7 +1874,7 @@
         var ws = wb.addWorksheet(sanitizeSheetName(subj) || 'Лист');
         writeGmoShmoMeasuresSheet(ws, subj, subjDict[subj], terr, empiricalMax);
       });
-      var buf = await wb.xlsx.writeBuffer();
+      var buf = await writeXlsx(wb);
       out.push({territory: terr, buffer: buf});
     }
     return out;
@@ -1555,13 +1909,17 @@
       var parsed = buildRecords(rows, formatChoice);
       var records = parsed.records;
       if (records.length === 0){
-        statusEl.textContent = 'В файле не найдено строк с уровнем «Низкий» или «Базовый». Проверьте структуру файла.';
+        var lv = Object.keys(parsed.levelCounts || {}).map(function(k){ return '«' + (k || 'пусто') + '» — ' + parsed.levelCounts[k]; }).join(', ');
+        statusEl.textContent = 'В файле не найдено строк педагогов с уровнем «Низкий» или «Базовый»' +
+          (lv ? ' (найденные значения уровня: ' + lv + ')' : '') +
+          (Object.keys(parsed.unclassified).length ? '; не распознаны специальности: ' + Object.keys(parsed.unclassified).join(', ') : '') +
+          '. Проверьте структуру файла.';
         processBtn.disabled = false;
         progressWrap.style.display = 'none';
         return;
       }
       setProgress(35, 'Считаем дефициты по заданиям…');
-      var empiricalMax = computeEmpiricalMax(records);
+      var empiricalMax = parsed.empiricalMaxAll;
 
       var territoriesSet = {};
       records.forEach(function(r){ territoriesSet[r.territory] = true; });
@@ -1585,7 +1943,7 @@
         {key:'13б_ТАБЛИЦА_МЕРОПРИЯТИЙ_ГМО_ШМО_ВОСПИТАТЕЛИ_СПЕЦИАЛИСТЫ', label:'Таблица мероприятий ГМО и ШМО по территориям (дефициты своей территории) — воспитатели/специалисты', group:2, kind:'measures-table-gmo-shmo'},
         {key:'14_ДАШБОРД_ДЕФИЦИТОВ', label:'Дашборд: треки (УМЦ/ГМО/ШМО), таймлайн, чек-лист, обратная связь', kind:'dashboard'},
         {key:'15_ТРЕНАЖЁР_САМОДИАГНОСТИКА', label:'Тренажёр самодиагностики (квиз по дефицитам)', kind:'quiz'},
-        {key:'16_ПОДГОТОВКА_НОВЫЕ_ТЕМЫ_2026', label:'Проактивная подготовка к новым темам спецификации 2026 (отдельный файл на предмет)', kind:'new-topics-prep'},
+        {key:'16_ПОДГОТОВКА_НОВЫЕ_ТЕМЫ_2026', label:'Новые темы спецификации 2026: фактический % по выгрузке и мероприятия (отдельный файл на предмет)', kind:'new-topics-prep'},
         {key:'17_ТИПОВОЙ_ПЛАН_МЕРОПРИЯТИЙ', label:'Сводный типовой план работы по мероприятиям (УМЦ/ГМО/ШМО: дефициты + новые темы 2026)', kind:'typical-plan'}
       ];
 
@@ -1620,7 +1978,7 @@
         } else if (pkg.kind === 'quiz'){
           files = await buildQuizFiles(records, empiricalMax, territories);
         } else if (pkg.kind === 'new-topics-prep'){
-          files = await buildAllNewTopicsPrepFiles();
+          files = await buildAllNewTopicsPrepFiles(records, empiricalMax);
         } else if (pkg.kind === 'typical-plan'){
           var planBuf = await buildTypicalPlanWorkbook(records, empiricalMax);
           files = [{territory: 'Регион', buffer: planBuf}];
@@ -1637,7 +1995,7 @@
           var singleFileKinds = (pkg.kind === 'measures-table-umc' || pkg.kind === 'typical-plan');
           var fname = singleFileKinds ? (pkg.key + ext) : (pkg.key + '_' + f.territory + ext);
           generatedFiles.push({
-            pkgKey: pkg.key, pkgLabel: pkg.label,
+            pkgKey: pkg.key, pkgLabel: pkg.label, pkgKind: pkg.kind,
             territory: f.territory,
             filename: fname,
             blob: blob
@@ -1669,10 +2027,14 @@
     if (!fmtNote){
       fmtNote = document.createElement('div');
       fmtNote.id = 'riku-format-note';
-      fmtNote.className = 'riku-warn';
+      fmtNote.className = 'riku-note';
       card.insertBefore(fmtNote, document.getElementById('riku-stats'));
     }
-    fmtNote.textContent = 'Формат СВОД: ' + fmtLabel + (parsed.format !== parsed.detectedFormat ? ' (выбран вручную)' : ' (определён автоматически)') + '. Если распределение заданий выглядит некорректно — переключите формат вручную и обработайте файл повторно.';
+    var lay = parsed.layout;
+    var layText = lay
+      ? ' Колонки найдены по шапке файла: методический блок — ' + (lay.offsets.metod[1]-lay.offsets.metod[0]) + ' зад., предметный — ' + (lay.offsets.predmet[1]-lay.offsets.predmet[0]) + ', ФГ — ' + (lay.offsets.fg[1]-lay.offsets.fg[0]) + '.'
+      : ' Шапку файла распознать не удалось — использованы стандартные позиции колонок шаблона СВОД.';
+    fmtNote.textContent = 'Формат СВОД: ' + fmtLabel + (parsed.format !== parsed.detectedFormat ? ' (выбран вручную)' : ' (определён автоматически)') + '.' + layText + ' Если распределение заданий выглядит некорректно — переключите формат вручную и обработайте файл повторно.';
     var g1 = records.filter(function(r){return r.group===1;});
     var g2 = records.filter(function(r){return r.group===2;});
     var lowG1 = g1.filter(function(r){return r.overallLevel==='Низкий';}).length;
@@ -1699,50 +2061,155 @@
       warnHtml += '<div class="riku-warn">⚠ Не распознаны как предметники/специалисты и не учтены: ' +
         unclassifiedKeys.map(function(k){return k + ' (' + parsed.unclassified[k] + ')';}).join(', ') + '</div>';
     }
+    if (!parsed.numericScores){
+      warnHtml += '<div class="riku-warn">⚠ В колонках заданий не найдено ни одного балла — таблицы будут пустыми. Проверьте, что файл — СВОД РИКУ с баллами по заданиям, и формат выбран верно.</div>';
+    } else if (parsed.textScores){
+      warnHtml += '<div class="riku-warn">ℹ ' + parsed.textScores + ' балл(ов) в файле записаны как текст — они распознаны и учтены.</div>';
+    }
+    var issueKeys = Object.keys(SPEC_MAX_ISSUES);
+    if (issueKeys.length){
+      warnHtml += '<div class="riku-warn">ℹ Баллы в файле выше макс. балла задания по спецификации — для расчёта % взят фактический максимум из файла (стоит сверить спецификацию): ' +
+        issueKeys.map(function(k){ var x = SPEC_MAX_ISSUES[k]; return x.subject + ', зад. ' + x.taskNum + ' (спец.: ' + x.specMax + ', в файле: ' + x.obsMax + ')'; }).join('; ') + '</div>';
+    }
     var missingKeys = Object.keys(parsed.missingSpec);
     if (missingKeys.length){
       warnHtml += '<div class="riku-warn">ℹ Для этих специальностей нет официальной спецификации КУРО — задания подписаны без описания содержания, макс. балл определён по фактическим данным файла: ' +
         missingKeys.join(', ') + '</div>';
     }
     document.getElementById('riku-warnings').innerHTML = warnHtml;
-    document.getElementById('riku-territories').textContent = 'Территории: ' + territories.join(', ');
+    document.getElementById('riku-territories').innerHTML = '<b>Территории (' + territories.length + '):</b> ' + territories.map(esc).join(', ');
   }
 
+  // ---------------- выдача: разделы по направлениям ----------------
+  var ICONS = {
+    person:'<path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+    bars:'<path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/>',
+    alert:'<path d="M12 3 2 20h20z"/><path d="M12 10v4"/><path d="M12 17.5v.01"/>',
+    region:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18"/><path d="M12 3a14 14 0 0 0 0 18"/>',
+    pin:'<path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>',
+    screen:'<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8"/><path d="M12 16v4"/>',
+    calendar:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/>'
+  };
+  var SECTIONS = [
+    {id:'detail', icon:'person', title:'Персональный разбор педагогов', desc:'Каждый педагог низкого и базового уровня — баллы и % по каждому заданию', kinds:['detail']},
+    {id:'freq', icon:'bars', title:'Частота западающих заданий', desc:'Своды по уровням: сколько педагогов «просели» по каждому заданию', kinds:['svod']},
+    {id:'deficit', icon:'alert', title:'Своды дефицитов (<50%)', desc:'Задания со средним результатом ниже 50% — по территориям и по региону в целом', kinds:['svod-deficit','svod-deficit-total']},
+    {id:'umc', icon:'region', title:'Мероприятия межмуниципального уровня (УМЦ)', desc:'По усреднённым дефицитам всего региона', kinds:['measures-table-umc']},
+    {id:'gmoshmo', icon:'pin', title:'Мероприятия ГМО и ШМО по территориям', desc:'По дефицитам конкретной территории', kinds:['measures-table-gmo-shmo']},
+    {id:'interactive', icon:'screen', title:'Дашборды и тренажёры', desc:'Интерактивные страницы для территорий: треки, чек-листы, самодиагностика', kinds:['dashboard','quiz']},
+    {id:'plan', icon:'calendar', title:'Планирование', desc:'Новые темы спецификации 2026 и сводный типовой план мероприятий', kinds:['new-topics-prep','typical-plan']}
+  ];
+  function svgIcon(name, size){
+    return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICONS[name] + '</svg>';
+  }
+  var DL_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="m7 11 5 5 5-5"/><path d="M5 20h14"/></svg>';
+  var CHEV = '<svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
+  function sectionOf(kind){
+    for (var i = 0; i < SECTIONS.length; i++){ if (SECTIONS[i].kinds.indexOf(kind) >= 0) return SECTIONS[i]; }
+    return SECTIONS[SECTIONS.length - 1];
+  }
+  function filesWord(n){
+    var m10 = n % 10, m100 = n % 100;
+    if (m10 === 1 && m100 !== 11) return 'файл';
+    if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return 'файла';
+    return 'файлов';
+  }
+  function fileCaption(f){
+    if (f.territory === 'Регион') return 'Весь регион';
+    return String(f.territory).replace(/_/g, ' ');
+  }
+  var objectUrls = [];
   function renderDownloads(){
     var dlCard = document.getElementById('riku-download-card');
     dlCard.classList.remove('riku-hidden');
-    var tbody = document.getElementById('riku-files-body');
-    tbody.innerHTML = '';
-    generatedFiles.forEach(function(f){
-      var url = URL.createObjectURL(f.blob);
-      var tr = document.createElement('tr');
-      tr.innerHTML = '<td>' + f.pkgLabel + '</td><td>' + f.territory + '</td><td>' + f.filename + '</td>' +
-        '<td><a class="riku-dl" href="' + url + '" download="' + f.filename + '">Скачать</a></td>';
-      tbody.appendChild(tr);
+    objectUrls.forEach(function(u){ try { URL.revokeObjectURL(u); } catch(e){} });
+    objectUrls = [];
+    var host = document.getElementById('riku-sections');
+    host.innerHTML = '';
+    document.getElementById('riku-dl-total').textContent =
+      'Всего сформировано ' + generatedFiles.length + ' ' + filesWord(generatedFiles.length) + '. Откройте нужное направление — файлы сгруппированы по видам отчётов.';
+
+    SECTIONS.forEach(function(sec){
+      var secFiles = generatedFiles.filter(function(f){ return sectionOf(f.pkgKind) === sec; });
+      if (!secFiles.length) return;
+      // группировка по пакету внутри раздела, в исходном порядке пакетов
+      var pkgOrder = [], byPkg = {};
+      secFiles.forEach(function(f){
+        if (!byPkg[f.pkgKey]){ byPkg[f.pkgKey] = []; pkgOrder.push(f.pkgKey); }
+        byPkg[f.pkgKey].push(f);
+      });
+      var det = document.createElement('details');
+      det.className = 'riku-sec';
+      var sum = document.createElement('summary');
+      sum.innerHTML = '<span class="ic">' + svgIcon(sec.icon, 20) + '</span>' +
+        '<span class="tx"><span class="t">' + esc(sec.title) + '</span><span class="d" style="display:block">' + esc(sec.desc) + '</span></span>' +
+        '<span class="cnt">' + secFiles.length + ' ' + filesWord(secFiles.length) + '</span>' + CHEV;
+      det.appendChild(sum);
+      var body = document.createElement('div');
+      body.className = 'riku-sec-body';
+      if (secFiles.length > 1){
+        var tools = document.createElement('div');
+        tools.className = 'riku-sec-tools';
+        var zb = document.createElement('button');
+        zb.type = 'button';
+        zb.className = 'riku-mini-btn';
+        zb.textContent = 'Скачать раздел архивом';
+        zb.addEventListener('click', function(){
+          downloadZip(secFiles, 'РИКУ_' + sec.title.replace(/[^\wА-Яа-яЁё]+/g, '_').replace(/_+$/,'') + '.zip', zb, false);
+        });
+        tools.appendChild(zb);
+        body.appendChild(tools);
+      }
+      pkgOrder.forEach(function(key){
+        var list = byPkg[key];
+        var pk = document.createElement('div');
+        pk.className = 'riku-pkg';
+        var html = '<div class="riku-pkg-title">' + esc(list[0].pkgLabel) + '<span>· ' + list.length + '</span></div><div class="riku-files">';
+        list.forEach(function(f){
+          var url = URL.createObjectURL(f.blob);
+          objectUrls.push(url);
+          var ext = /\.html$/i.test(f.filename) ? 'HTML' : 'XLSX';
+          html += '<a class="riku-dl" href="' + url + '" download="' + esc(f.filename) + '" title="' + esc(f.filename) + '">' +
+            DL_ICON + '<span class="nm">' + esc(fileCaption(f)) + '</span><span class="ext">' + ext + '</span></a>';
+        });
+        html += '</div>';
+        pk.innerHTML = html;
+        body.appendChild(pk);
+      });
+      det.appendChild(body);
+      host.appendChild(det);
     });
   }
 
-  document.getElementById('riku-zip-btn').addEventListener('click', async function(){
-    if (!generatedFiles.length) return;
-    var btn = this;
+  async function downloadZip(files, zipName, btn, withSections){
+    if (!files.length) return;
     var oldText = btn.textContent;
     btn.textContent = 'Архивируем…';
     btn.disabled = true;
-    var zip = new JSZip();
-    generatedFiles.forEach(function(f){
-      var folder = f.pkgKey;
-      zip.file(folder + '/' + f.filename, f.blob);
-    });
-    var content = await zip.generateAsync({type:'blob'});
-    var url = URL.createObjectURL(content);
-    var a = document.createElement('a');
-    a.href = url;
-    a.download = 'РИКУ_аналитика_дефицитов.zip';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    btn.textContent = oldText;
-    btn.disabled = false;
+    try {
+      var zip = new JSZip();
+      files.forEach(function(f){
+        var sec = sectionOf(f.pkgKind);
+        var secFolder = withSections ? ((SECTIONS.indexOf(sec) + 1) + '. ' + sec.title.replace(/[\\\/:*?"<>|]/g, ' ') + '/') : '';
+        zip.file(secFolder + f.pkgKey + '/' + f.filename, f.blob);
+      });
+      var content = await zip.generateAsync({type:'blob'});
+      var url = URL.createObjectURL(content);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = zipName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 60000);
+    } finally {
+      btn.textContent = oldText;
+      btn.disabled = false;
+    }
+  }
+
+  document.getElementById('riku-zip-btn').addEventListener('click', function(){
+    downloadZip(generatedFiles, 'РИКУ_аналитика_дефицитов.zip', this, true);
   });
 
 })();
