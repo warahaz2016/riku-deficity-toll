@@ -4,13 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>РИКУ · Аналитика дефицитов педагогов</title>
-<!-- Библиотеки лежат рядом с приложением в папке lib/ (школьные сети часто
+<!-- Библиотеки лежат рядом с приложением (в той же папке, что и index.html) (школьные сети часто
      блокируют CDN). Если локальный файл не нашёлся — пробуем CDN как запасной вариант. -->
-<script src="lib/xlsx.full.min.js"></script>
+<script src="xlsx.full.min.js"></script>
 <script>window.XLSX||document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"><\/script>');</script>
-<script src="lib/exceljs.min.js"></script>
+<script src="exceljs.min.js"></script>
 <script>window.ExcelJS||document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"><\/script>');</script>
-<script src="lib/jszip.min.js"></script>
+<script src="jszip.min.js"></script>
 <script>window.JSZip||document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"><\/script>');</script>
 <style>
   /* Шрифт Manrope встроен в страницу — без обращения к Google Fonts. */
@@ -218,7 +218,7 @@
     var box = document.createElement('div');
     box.setAttribute('role', 'alert');
     box.style.cssText = 'max-width:960px;margin:16px auto;padding:14px 18px;border-radius:12px;background:#fdecec;border:1px solid #f0b9b9;color:#8a1c1c;font:14px/1.5 Manrope,"Segoe UI",Arial,sans-serif;';
-    box.innerHTML = '<b>Не загрузилась библиотека ' + missing.join(', ') + '.</b><br>Обновите страницу (Ctrl+F5) или обратитесь к администратору: файлы из папки <code>lib/</code> должны лежать рядом с приложением.';
+    box.innerHTML = '<b>Не загрузилась библиотека ' + missing.join(', ') + '.</b><br>Обновите страницу (Ctrl+F5) или обратитесь к администратору: файлы xlsx.full.min.js, exceljs.min.js и jszip.min.js должны лежать рядом с index.html.';
     document.body.insertBefore(box, document.body.firstChild);
     var btns = document.querySelectorAll('button');
     for (var i = 0; i < btns.length; i++){ btns[i].disabled = true; btns[i].title = 'Библиотеки не загрузились — обновите страницу'; }
